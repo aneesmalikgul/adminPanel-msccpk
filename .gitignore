@@ -1,0 +1,17 @@
+# Ignore zip files
+*.zip
+
+# Ignore sql files
+*.sql
+
+# Ignore specific file
+layouts/config.php
+
+# ignore uploads folder
+uploads/
+RAW_Files/
+assets/uploads/
+images/project_images/
+
+# ignore some other files
+error_log
