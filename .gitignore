@@ -4,8 +4,6 @@
 # Ignore sql files
 *.sql
 
-# Ignore specific file
-layouts/config.php
 
 # ignore uploads folder
 uploads/
