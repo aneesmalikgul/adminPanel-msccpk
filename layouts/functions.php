@@ -31,7 +31,6 @@ function hasPermission($permission_name)
 
     return $query->fetchColumn() > 0;
 }
-
 function getUserRole()
 {
     global $conn;
@@ -54,13 +53,13 @@ function getUserRole()
             // Execute the query
             mysqli_stmt_execute($stmt);
 
-            // Get the result
-            $result = mysqli_stmt_get_result($stmt);
+            // Bind the result variable
+            mysqli_stmt_bind_result($stmt, $role_name);
 
-            // Check if a role is found
-            if ($row = mysqli_fetch_assoc($result)) {
+            // Fetch the result
+            if (mysqli_stmt_fetch($stmt)) {
                 mysqli_stmt_close($stmt);
-                return $row['role_name'];  // Return the role name
+                return $role_name;  // Return the role name
             } else {
                 mysqli_stmt_close($stmt);
                 return "Unknown Role";  // Handle case where no role is found
@@ -72,6 +71,7 @@ function getUserRole()
         return "Role not set";  // Handle case where role_id is not in the session
     }
 }
+
 
 
 function displaySessionMessage()
