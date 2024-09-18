@@ -5,7 +5,7 @@
 
 <head>
 
-    <title>Dashboard | CakePalace Orders</title>
+    <title>Dashboard | Mohsin Shaheen Construction Company</title>
     <?php include 'layouts/title-meta.php'; ?>
 
     <!-- Daterangepicker css -->

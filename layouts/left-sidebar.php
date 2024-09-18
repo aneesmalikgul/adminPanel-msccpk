@@ -168,6 +168,19 @@
               </div>
             </li>
             <li class="side-nav-item">
+              <a data-bs-toggle="collapse" href="#sidebarUser" aria-expanded="false" aria-controls="sidebarUser">
+                <span> Manage Users </span>
+                <span class="menu-arrow"></span>
+              </a>
+              <div class="collapse" id="sidebarUser">
+                <ul class="side-nav-third-level">
+                  <li>
+                    <a href="manage-users.php">Users</a>
+                  </li>
+                </ul>
+              </div>
+            </li>
+            <li class="side-nav-item">
               <a data-bs-toggle="collapse" href="#sidebarUserPermissions" aria-expanded="false" aria-controls="sidebarUserPermissions">
                 <span> User Permissions </span>
                 <span class="menu-arrow"></span>
