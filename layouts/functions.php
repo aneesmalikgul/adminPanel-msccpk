@@ -32,7 +32,6 @@ function hasPermission($permission_name)
     return $query->fetchColumn() > 0;
 }
 
-
 function getUserRole()
 {
     global $conn;
@@ -48,22 +47,32 @@ function getUserRole()
 
         // Prepare the SQL query to get the role name based on the role_id
         $query = "SELECT role_name FROM roles WHERE id = ?";
-        $stmt = $conn->prepare($query);
-        $stmt->bind_param("i", $role_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
+        if ($stmt = mysqli_prepare($conn, $query)) {
+            // Bind the parameter
+            mysqli_stmt_bind_param($stmt, "i", $role_id);
 
-        // Check if a role is found
-        if ($result->num_rows > 0) {
-            $row = $result->fetch_assoc();
-            return $row['role_name'];  // Return the role name
+            // Execute the query
+            mysqli_stmt_execute($stmt);
+
+            // Get the result
+            $result = mysqli_stmt_get_result($stmt);
+
+            // Check if a role is found
+            if ($row = mysqli_fetch_assoc($result)) {
+                mysqli_stmt_close($stmt);
+                return $row['role_name'];  // Return the role name
+            } else {
+                mysqli_stmt_close($stmt);
+                return "Unknown Role";  // Handle case where no role is found
+            }
         } else {
-            return "Unknown Role";  // Handle case where no role is found
+            return "Query Preparation Failed";  // Handle case where statement preparation fails
         }
     } else {
         return "Role not set";  // Handle case where role_id is not in the session
     }
 }
+
 
 function displaySessionMessage()
 {
