@@ -45,12 +45,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveUserData'])) {
         $createdBy = $_SESSION['user_id']; // Assume this is set in the session
 
         // Check if profile picture is uploaded and validate its dimensions
-        $profilePicPath = NULL;
+        $profilePicPath = ''; // Use an empty string if no image is uploaded
         if (isset($_FILES['userProfilePic']) && $_FILES['userProfilePic']['error'] == 0) {
             $fileTmpPath = $_FILES['userProfilePic']['tmp_name'];
             $fileName = basename($_FILES['userProfilePic']['name']);
-            $targetDir = "uploads/"; // Directory for uploads
+            $targetDir = "assets/uploads/user-images/"; // Directory for uploads
             $targetFilePath = $targetDir . $fileName;
+
+            // Check if the target directory exists, if not, create it
+            if (!is_dir($targetDir)) {
+                if (!mkdir($targetDir, 0777, true)) {
+                    throw new Exception("Failed to create directory: $targetDir");
+                }
+            }
 
             // Validate image dimensions
             list($width, $height) = getimagesize($fileTmpPath);
@@ -58,7 +65,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveUserData'])) {
                 throw new Exception("Profile picture must be 500x500 pixels. Current dimensions are $width x $height.");
             }
 
-            move_uploaded_file($fileTmpPath, $targetFilePath);
+            // Move the uploaded file to the target directory
+            if (!move_uploaded_file($fileTmpPath, $targetFilePath)) {
+                throw new Exception("Failed to move uploaded file.");
+            }
+
+            // Set the file path for further use
             $profilePicPath = $targetFilePath;
         }
 
@@ -66,7 +78,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveUserData'])) {
         $checkQuery = "SELECT COUNT(*) as count FROM users WHERE username = ? OR email = ?";
         $stmt = mysqli_prepare($conn, $checkQuery);
         mysqli_stmt_bind_param($stmt, 'ss', $username, $email);
-        mysqli_stmt_execute($stmt);
+        if (!mysqli_stmt_execute($stmt)) {
+            throw new Exception("Error checking username or email: " . mysqli_stmt_error($stmt));
+        }
         mysqli_stmt_bind_result($stmt, $count);
         mysqli_stmt_fetch($stmt);
         mysqli_stmt_close($stmt);
@@ -101,18 +115,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveUserData'])) {
         // Error message
         $_SESSION['message'] = ['type' => 'danger', 'text' => $e->getMessage()];
     } finally {
-        // Close the statement and connection
-        if (isset($stmt)) {
-            mysqli_stmt_close($stmt);
-        }
-        mysqli_close($conn);
+        // Redirect to another page after processing (optional)
+        header("Location: manage-users.php");
+        exit;
     }
-
-    // Redirect to another page after processing (optional)
-    header("Location: users_list.php");
-    exit;
 }
-
 
 ?>
 
