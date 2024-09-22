@@ -4,7 +4,6 @@
 # Ignore sql files
 *.sql
 
-
 # ignore uploads folder
 uploads/
 RAW_Files/
@@ -13,3 +12,4 @@ images/project_images/
 
 # ignore some other files
 error_log
+layouts/config.php
