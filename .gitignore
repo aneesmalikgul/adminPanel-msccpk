@@ -12,4 +12,6 @@ images/project_images/
 
 # ignore some other files
 error_log
+
+# Ignore config.php in layouts folder
 layouts/config.php
