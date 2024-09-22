@@ -12,3 +12,4 @@ images/project_images/
 
 # ignore some other files
 error_log
+layouts/config.php
