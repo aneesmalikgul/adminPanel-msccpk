@@ -18,19 +18,31 @@ function logMessage($message)
 {
     error_log($message, 3, 'debug.log'); // Change 'debug.log' to the desired log file path
 }
-
 function hasPermission($permission_name)
 {
-    global $db;
+    global $conn;
     $role_id = $_SESSION['role_id'];
 
-    $query = $db->prepare("SELECT COUNT(*) FROM role_permissions rp
-                           INNER JOIN permissions p ON rp.permission_id = p.id
-                           WHERE rp.role_id = ? AND p.permission_name = ?");
-    $query->execute([$role_id, $permission_name]);
+    // Prepare the SQL statement
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM role_permissions rp
+                            INNER JOIN permissions p ON rp.permission_id = p.id
+                            WHERE rp.role_id = ? AND p.permission_name = ?");
 
-    return $query->fetchColumn() > 0;
+    // Bind parameters and execute the statement
+    $stmt->bind_param("is", $role_id, $permission_name);
+    $stmt->execute();
+
+    // Get the result
+    $stmt->bind_result($count);
+    $stmt->fetch();
+
+    // Close the statement
+    $stmt->close();
+
+    // Return true if count > 0, meaning permission exists
+    return $count > 0;
 }
+
 function getUserRole()
 {
     global $conn;
@@ -46,22 +58,22 @@ function getUserRole()
 
         // Prepare the SQL query to get the role name based on the role_id
         $query = "SELECT role_name FROM roles WHERE id = ?";
-        if ($stmt = mysqli_prepare($conn, $query)) {
+        if ($stmt = $conn->prepare($query)) {
             // Bind the parameter
-            mysqli_stmt_bind_param($stmt, "i", $role_id);
+            $stmt->bind_param("i", $role_id);
 
             // Execute the query
-            mysqli_stmt_execute($stmt);
+            $stmt->execute();
 
             // Bind the result variable
-            mysqli_stmt_bind_result($stmt, $role_name);
+            $stmt->bind_result($role_name);
 
             // Fetch the result
-            if (mysqli_stmt_fetch($stmt)) {
-                mysqli_stmt_close($stmt);
+            if ($stmt->fetch()) {
+                $stmt->close();
                 return $role_name;  // Return the role name
             } else {
-                mysqli_stmt_close($stmt);
+                $stmt->close();
                 return "Unknown Role";  // Handle case where no role is found
             }
         } else {
@@ -71,8 +83,6 @@ function getUserRole()
         return "Role not set";  // Handle case where role_id is not in the session
     }
 }
-
-
 
 function displaySessionMessage()
 {
@@ -85,7 +95,7 @@ function displaySessionMessage()
                 $content = htmlspecialchars($message['content']);
 
                 // Output the Bootstrap alert
-                echo "<div class='alert alert-{$alertType} alert-dismissible fade show' role='alert'>";
+                echo "<div class='alert alert-{$alertType} alert-dismissible fade show' role='alert' id='session-alert'>";
                 echo "{$content}";
                 echo "<button type='button' class='btn-close' data-bs-dismiss='alert' aria-label='Close'></button>";
                 echo "</div>";
@@ -94,5 +104,19 @@ function displaySessionMessage()
 
         // Unset the session message after displaying it
         unset($_SESSION['message']);
+
+        // Add JavaScript to dismiss the alert after 3 seconds
+        echo "<script>
+                setTimeout(function() {
+                    var alert = document.getElementById('session-alert');
+                    if (alert) {
+                        alert.classList.remove('show');
+                        alert.classList.add('fade');
+                        setTimeout(function() {
+                            alert.remove();
+                        }, 500); // Wait for the fade effect to finish
+                    }
+                }, 3000); // 3 seconds
+              </script>";
     }
 }

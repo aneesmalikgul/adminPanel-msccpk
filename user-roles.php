@@ -6,118 +6,116 @@ include 'layouts/main.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveRole'])) {
     // Collect form data and sanitize inputs
-    $roleName = mysqli_real_escape_string($conn, $_POST['roleName']);
-
-    $roleName = strtolower($roleName);
+    $roleName = strtolower(trim($_POST['roleName']));
     $roleName = str_replace([' ', '-'], '_', $roleName);
-
-    $roleStatus = mysqli_real_escape_string($conn, $_POST['roleStatus']);
-    $createdBy = $_SESSION['user_id']; // Assuming username is stored in the session
+    $roleStatus = (int)$_POST['roleStatus']; // Cast to integer for the status
+    $createdBy = $_SESSION['user_id']; // Assuming user ID is stored in the session
     $createdAt = date('Y-m-d H:i:s');
 
     // Start a transaction
-    mysqli_begin_transaction($conn, MYSQLI_TRANS_START_READ_WRITE);
+    $conn->begin_transaction(MYSQLI_TRANS_START_READ_WRITE);
 
     try {
         // Prepare the SQL insert query
         $query = "INSERT INTO roles (role_name, status, created_by, created_at) VALUES (?, ?, ?, ?)";
-        $stmt = mysqli_prepare($conn, $query);
+        $stmt = $conn->prepare($query);
 
         // Throw an exception if the prepare statement fails
         if ($stmt === false) {
-            throw new Exception("Prepare statement failed: " . mysqli_error($conn));
+            throw new Exception("Prepare statement failed: " . $conn->error);
         }
 
         // Bind parameters to the prepared statement (prevents SQL injection)
-        mysqli_stmt_bind_param($stmt, "siss", $roleName, $roleStatus, $createdBy, $createdAt);
+        $stmt->bind_param("siss", $roleName, $roleStatus, $createdBy, $createdAt);
 
         // Execute the prepared statement
-        if (!mysqli_stmt_execute($stmt)) {
-            throw new Exception("Execute statement failed: " . mysqli_stmt_error($stmt));
+        if (!$stmt->execute()) {
+            throw new Exception("Execute statement failed: " . $stmt->error);
         }
 
         // Commit the transaction
-        mysqli_commit($conn);
+        $conn->commit();
 
         // Set success message in session
-        $_SESSION['message'][] = array("type" => "success", "content" => "Role added successfully!");
+        $_SESSION['message'][] = ["type" => "success", "content" => "Role added successfully!"];
 
-        // Redirect to the roles page (or wherever you'd like)
+        // Redirect to the roles page
         header("Location: user-roles.php");
         exit();
     } catch (Exception $e) {
         // Rollback the transaction if any error occurs
-        mysqli_rollback($conn);
+        $conn->rollback();
 
         // Set error message in session
-        $_SESSION['message'][] = array("type" => "danger", "content" => $e->getMessage());
+        $_SESSION['message'][] = ["type" => "danger", "content" => $e->getMessage()];
     } finally {
-        // Close the prepared statement and the connection
+        // Close the prepared statement
         if (isset($stmt)) {
-            mysqli_stmt_close($stmt);
+            $stmt->close();
         }
-        mysqli_close($conn);
+        // Close the connection
+        $conn->close();
 
         // Redirect to the roles page
         header("Location: user-roles.php");
         exit();
     }
 }
-
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["btnUpdateRole"])) {
     // Collect form data and sanitize inputs
-    $roleId = mysqli_real_escape_string($conn, $_POST['roleId']);
-    $roleName = mysqli_real_escape_string($conn, $_POST['roleName']);
-    $roleName = strtolower($roleName);
+    $roleId = (int)$_POST['roleId']; // Cast to integer
+    $roleName = strtolower(trim($_POST['roleName']));
     $roleName = str_replace([' ', '-'], '_', $roleName);
-    $roleStatus = mysqli_real_escape_string($conn, $_POST['roleStatus']);
-    $updatedBy = $_SESSION['user_id']; // Assuming the logged-in user ID is stored in session
+    $roleStatus = (int)$_POST['roleStatus']; // Cast to integer
+    $updatedBy = $_SESSION['user_id'];
     $updatedAt = date('Y-m-d H:i:s');
 
     // Start a transaction
-    mysqli_begin_transaction($conn, MYSQLI_TRANS_START_READ_WRITE);
+    $conn->begin_transaction(MYSQLI_TRANS_START_READ_WRITE);
 
     try {
         // Prepare the update query
         $query = "UPDATE roles SET role_name = ?, status = ?, updated_by = ?, updated_at = ? WHERE id = ?";
-        $stmt = mysqli_prepare($conn, $query);
+        $stmt = $conn->prepare($query);
 
         // Check if the statement was prepared successfully
         if ($stmt === false) {
-            throw new Exception("Prepare statement failed: " . mysqli_error($conn));
+            throw new Exception("Prepare statement failed: " . $conn->error);
         }
 
         // Bind parameters to the prepared statement
-        mysqli_stmt_bind_param($stmt, "siisi", $roleName, $roleStatus, $updatedBy, $updatedAt, $roleId);
+        $stmt->bind_param("siisi", $roleName, $roleStatus, $updatedBy, $updatedAt, $roleId);
 
         // Execute the prepared statement
-        if (!mysqli_stmt_execute($stmt)) {
-            throw new Exception("Execute statement failed: " . mysqli_stmt_error($stmt));
+        if (!$stmt->execute()) {
+            throw new Exception("Execute statement failed: " . $stmt->error);
         }
 
         // Commit the transaction
-        mysqli_commit($conn);
+        $conn->commit();
 
-        // Set success message and redirect to user-roles.php
-        $_SESSION['message'][] = array("type" => "success", "content" => "Role updated successfully!");
+        // Set success message and redirect
+        $_SESSION['message'][] = ["type" => "success", "content" => "Role updated successfully!"];
         header("Location: user-roles.php");
         exit();
     } catch (Exception $e) {
         // Rollback the transaction on error
-        mysqli_rollback($conn);
+        $conn->rollback();
 
         // Set error message and redirect
-        $_SESSION['message'][] = array("type" => "danger", "content" => $e->getMessage());
+        $_SESSION['message'][] = ["type" => "danger", "content" => $e->getMessage()];
         header("Location: edit-role.php?id=" . urlencode($roleId));
         exit();
     } finally {
-        // Close the statement and connection
+        // Close the statement
         if (isset($stmt)) {
-            mysqli_stmt_close($stmt);
+            $stmt->close();
         }
-        mysqli_close($conn);
+        // Close the connection
+        $conn->close();
     }
 }
+
 ?>
 
 <head>

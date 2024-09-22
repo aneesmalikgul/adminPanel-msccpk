@@ -6,116 +6,246 @@ include 'layouts/main.php';
 
 $roles = [];
 try {
-    mysqli_begin_transaction($conn);
+    $conn->begin_transaction();
 
+    // Using a prepared statement
     $queryRoles = "SELECT * FROM roles WHERE status = 1 ORDER BY id ASC;";
-    $resultRoles = mysqli_query($conn, $queryRoles);
-    if ($resultRoles) {
-        while ($row = mysqli_fetch_assoc($resultRoles)) {
-            $roles[] = $row;
+    $stmt = $conn->prepare($queryRoles);
+
+    if ($stmt) {
+        $stmt->execute();
+        $resultRoles = $stmt->get_result();
+
+        if ($resultRoles) {
+            while ($row = $resultRoles->fetch_assoc()) {
+                $roles[] = $row;
+            }
+        } else {
+            throw new Exception('Error fetching roles: ' . $conn->error);
         }
+
+        // Close the statement
+        $stmt->close();
     } else {
-        throw new Exception('Error Fetching roles: ' . mysqli_error($conn));
+        throw new Exception('Prepare statement failed: ' . $conn->error);
     }
+
     // Commit the transaction
-    mysqli_commit($conn);
+    $conn->commit();
 } catch (Exception $e) {
     // Rollback the transaction on error
-    mysqli_rollback($conn);
-    $_SESSION['message'] = ['type' => 'error', 'text' => $e->getMessage()];
+    $conn->rollback();
+    $_SESSION['message'] = ["type" => "error", "content" => $e->getMessage()];
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveUserData'])) {
-    try {
-        // Begin the transaction
-        mysqli_begin_transaction($conn);
+    // Collect and sanitize inputs
+    $userFirstName = $conn->real_escape_string($_POST['userFirstName']);
+    $userLastName = $conn->real_escape_string($_POST['userLastName']);
+    $userCNIC = $conn->real_escape_string($_POST['userCNIC']);
+    $userDOB = $conn->real_escape_string($_POST['userDOB']);
+    $userEmail = $conn->real_escape_string($_POST['userEmail']);
+    $userName = $conn->real_escape_string($_POST['userName']);
+    $contactNumber = $conn->real_escape_string($_POST['contactNumber']);
+    $whatsAppContact = $conn->real_escape_string($_POST['whatsAppContact']);
+    $userAddress = $conn->real_escape_string($_POST['userAddress']);
+    $userRole = $conn->real_escape_string($_POST['userRole']);
+    $userStatus = $conn->real_escape_string($_POST['userStatus']);
 
-        // Sanitize user inputs
-        $firstName = htmlspecialchars(trim($_POST['userFirstName']));
-        $lastName = htmlspecialchars(trim($_POST['userLastName']));
-        $cnic = htmlspecialchars(trim($_POST['userCNIC']));
-        $dob = htmlspecialchars(trim($_POST['userDOB']));
-        $email = htmlspecialchars(trim($_POST['userEmail']));
-        $username = htmlspecialchars(trim($_POST['userName']));
-        $contactNumber = htmlspecialchars(trim($_POST['contactNumber']));
-        $whatsAppContact = htmlspecialchars(trim($_POST['whatsAppContact']));
-        $address = htmlspecialchars(trim($_POST['userAddress']));
-        $role = (int)$_POST['userRole'];
-        $status = (int)$_POST['userStatus'];
-        $createdBy = $_SESSION['user_id']; // Assume this is set in the session
+    // Assuming the current user's ID is stored in the session
+    $createdBy = $_SESSION['user_id']; // Adjust based on how you store user ID in session
+    $createdAt = date('Y-m-d H:i:s'); // Current timestamp
 
-        // Check if profile picture is uploaded and validate its dimensions
-        $profilePicPath = NULL;
-        if (isset($_FILES['userProfilePic']) && $_FILES['userProfilePic']['error'] == 0) {
-            $fileTmpPath = $_FILES['userProfilePic']['tmp_name'];
-            $fileName = basename($_FILES['userProfilePic']['name']);
-            $targetDir = "assets/uploads/user-images/"; // Directory for uploads
-            $targetFilePath = $targetDir . $fileName;
-
-            // Validate image dimensions
-            list($width, $height) = getimagesize($fileTmpPath);
-            if ($width != 500 || $height != 500) {
-                throw new Exception("Profile picture must be 500x500 pixels. Current dimensions are $width x $height.");
-            }
-
-            move_uploaded_file($fileTmpPath, $targetFilePath);
-            $profilePicPath = $targetFilePath;
+    // Image upload handling
+    $imageError = '';
+    $userProfilePic = $_FILES['userProfilePic'];
+    if ($userProfilePic['error'] === UPLOAD_ERR_OK) {
+        // Validate image size
+        list($width, $height) = getimagesize($userProfilePic['tmp_name']);
+        if ($width !== 500 || $height !== 500) {
+            $imageError = "Image must be 500x500 pixels.";
         }
 
-        // Check if username or email already exists to prevent duplication
-        $checkQuery = "SELECT COUNT(*) as count FROM users WHERE username = ? OR email = ?";
-        $stmt = mysqli_prepare($conn, $checkQuery);
-        mysqli_stmt_bind_param($stmt, 'ss', $username, $email);
-        mysqli_stmt_execute($stmt);
-        mysqli_stmt_bind_result($stmt, $count);
-        mysqli_stmt_fetch($stmt);
-        mysqli_stmt_close($stmt);
+        // Create the uploads directory if it doesn't exist
+        $uploadDir = 'assets/uploads/user-image/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        // Create a unique name for the image
+        $imageName = "{$userCNIC}-{$userName}-" . date('YmdHis') . '.' . pathinfo($userProfilePic['name'], PATHINFO_EXTENSION);
+        $imagePath = $uploadDir . $imageName;
+
+        // Move the uploaded file
+        if (!move_uploaded_file($userProfilePic['tmp_name'], $imagePath)) {
+            $imageError = "Failed to move uploaded file.";
+        }
+    } else {
+        $imageError = "Failed to upload image.";
+    }
+
+    // Check for uniqueness
+    if (empty($imageError)) {
+        $checkQuery = "SELECT COUNT(*) FROM users WHERE email = ? OR username = ? OR cnic = ?";
+        $stmt = $conn->prepare($checkQuery);
+        $stmt->bind_param("ssi", $userEmail, $userName, $userCNIC);
+        $stmt->execute();
+        $stmt->bind_result($count);
+        $stmt->fetch();
+        $stmt->close();
 
         if ($count > 0) {
-            throw new Exception("Username or Email already exists.");
+            $_SESSION['message'][] = ["type" => "danger", "content" => "Email, Username, or CNIC already exists."];
+        } else {
+            // Start a transaction
+            $conn->begin_transaction();
+
+            try {
+                // Prepare insert query
+                // Prepare insert query
+                $insertQuery = "INSERT INTO users (first_name, last_name, cnic, dob, email, username, contact_number, whatsapp_contact, address, role_id, is_active, profile_pic_path, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                $stmt = $conn->prepare($insertQuery);
+
+                // Adjust the binding parameters
+                $stmt->bind_param("ssssssisssssis", $userFirstName, $userLastName, $userCNIC, $userDOB, $userEmail, $userName, $contactNumber, $whatsAppContact, $userAddress, $userRole, $userStatus, $imagePath, $createdBy, $createdAt);
+
+                // Execute the query
+                if ($stmt->execute()) {
+                    $conn->commit();
+                    $_SESSION['message'][] = ["type" => "success", "content" => "User added successfully!"];
+                    header("Location: manage-users.php");
+                    exit();
+                } else {
+                    throw new Exception("Failed to insert user: " . $stmt->error);
+                }
+            } catch (Exception $e) {
+                $conn->rollback();
+                $_SESSION['message'][] = ["type" => "danger", "content" => $e->getMessage()];
+            }
+            // finally {
+            //     if (isset($stmt) && $stmt) {
+            //         $stmt->close();
+            //     }
+            // }
         }
-
-        // Prepare the insert query
-        $query = "INSERT INTO users (username, password_hash, email, first_name, last_name, cnic, dob, contact_number, whatsapp_contact, address, profile_pic_path, role_id, is_active, created_by) 
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
-        // Hash the password (assuming the form includes it)
-        $passwordHash = password_hash("defaultPassword", PASSWORD_DEFAULT); // Set default password
-
-        // Bind parameters and execute the query
-        $stmt = mysqli_prepare($conn, $query);
-        mysqli_stmt_bind_param($stmt, 'sssssssssssiii', $username, $passwordHash, $email, $firstName, $lastName, $cnic, $dob, $contactNumber, $whatsAppContact, $address, $profilePicPath, $role, $status, $createdBy);
-
-        if (!mysqli_stmt_execute($stmt)) {
-            throw new Exception("Failed to insert user: " . mysqli_stmt_error($stmt));
-        }
-
-        // Commit the transaction
-        mysqli_commit($conn);
-
-        // Success message
-        $_SESSION['message'] = ['type' => 'success', 'text' => 'User created successfully.'];
-    } catch (Exception $e) {
-        // Rollback the transaction if there’s an error
-        mysqli_rollback($conn);
-        // Error message
-        $_SESSION['message'] = ['type' => 'danger', 'text' => $e->getMessage()];
+    } else {
+        $_SESSION['message'][] = ["type" => "danger", "content" => $imageError];
     }
-    // finally {
-    //     // Close the statement and connection
-    //     if (isset($stmt)) {
-    //         mysqli_stmt_close($stmt);
-    //     }
-    //     mysqli_close($conn);
-    // }
-
-    // Redirect to another page after processing (optional)
-    header("Location: manage-users.php");
-    exit;
 }
 
 
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) {
+    // Collect and sanitize inputs
+    $userId = $conn->real_escape_string($_POST['userId']);
+    $userFirstName = $conn->real_escape_string($_POST['userFirstName']);
+    $userLastName = $conn->real_escape_string($_POST['userLastName']);
+    $userCNIC = $conn->real_escape_string($_POST['userCNIC']);
+    $userDOB = $conn->real_escape_string($_POST['userDOB']);
+    $userEmail = $conn->real_escape_string($_POST['userEmail']);
+    $userName = $conn->real_escape_string($_POST['userName']);
+    $contactNumber = $conn->real_escape_string($_POST['contactNumber']);
+    $whatsAppContact = $conn->real_escape_string($_POST['whatsAppContact']);
+    $userAddress = $conn->real_escape_string($_POST['userAddress']);
+    $userRole = $conn->real_escape_string($_POST['userRole']);
+    $userStatus = $conn->real_escape_string($_POST['userStatus']);
+
+    // Assuming the current user's ID is stored in the session
+    $updatedBy = $_SESSION['user_id']; // Adjust based on how you store user ID in session
+    $updatedAt = date('Y-m-d H:i:s'); // Current timestamp
+
+    // Image upload handling
+    $imageError = '';
+    $userProfilePic = $_FILES['userProfilePic'];
+    $imagePath = '';
+
+    if ($userProfilePic['error'] === UPLOAD_ERR_OK) {
+        // Validate image size
+        list($width, $height) = getimagesize($userProfilePic['tmp_name']);
+        if ($width !== 500 || $height !== 500) {
+            $imageError = "Image must be 500x500 pixels.";
+        }
+
+        // Create the uploads directory if it doesn't exist
+        $uploadDir = 'assets/uploads/user-image/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        // Create a unique name for the image
+        $imageName = "{$userCNIC}-{$userName}-" . date('YmdHis') . '.' . pathinfo($userProfilePic['name'], PATHINFO_EXTENSION);
+        $imagePath = $uploadDir . $imageName;
+
+        // Move the uploaded file
+        if (!move_uploaded_file($userProfilePic['tmp_name'], $imagePath)) {
+            $imageError = "Failed to move uploaded file.";
+        }
+    }
+
+    // Check for uniqueness, except for the current user being updated
+    if (empty($imageError)) {
+        $checkQuery = "SELECT COUNT(*) FROM users WHERE (email = ? OR username = ? OR cnic = ?) AND id != ?";
+        $stmt = $conn->prepare($checkQuery);
+        $stmt->bind_param("ssii", $userEmail, $userName, $userCNIC, $userId);
+        $stmt->execute();
+        $stmt->bind_result($count);
+        $stmt->fetch();
+        $stmt->close();
+
+        if ($count > 0) {
+            $_SESSION['message'][] = ["type" => "danger", "content" => "Email, Username, or CNIC already exists for another user."];
+        } else {
+            // Start a transaction
+            $conn->begin_transaction();
+
+            try {
+                // Prepare update query
+                $updateQuery = "UPDATE users SET first_name=?, last_name=?, cnic=?, dob=?, email=?, username=?, contact_number=?, whatsapp_contact=?, address=?, role_id=?, is_active=?, updated_by=?, updated_at=?";
+
+                // Add profile picture field if image uploaded successfully
+                if (!empty($imagePath)) {
+                    $updateQuery .= ", profile_pic_path=?";
+                    $queryParams = [$userFirstName, $userLastName, $userCNIC, $userDOB, $userEmail, $userName, $contactNumber, $whatsAppContact, $userAddress, $userRole, $userStatus, $updatedBy, $updatedAt, $imagePath, $userId];
+                    $paramTypes = "ssssssisssisssi";
+                } else {
+                    $queryParams = [$userFirstName, $userLastName, $userCNIC, $userDOB, $userEmail, $userName, $contactNumber, $whatsAppContact, $userAddress, $userRole, $userStatus, $updatedBy, $updatedAt, $userId];
+                    $paramTypes = "ssssssisssissi";
+                }
+
+                // Add where clause for user ID
+                $updateQuery .= " WHERE id = ?";
+
+                // Prepare the statement
+                $stmt = $conn->prepare($updateQuery);
+
+                // Bind the parameters
+                $stmt->bind_param($paramTypes, ...$queryParams);
+
+                // Execute the query
+                if ($stmt->execute()) {
+                    $conn->commit();
+                    $_SESSION['message'][] = ["type" => "success", "content" => "User updated successfully!"];
+                    header("Location: manage-users.php");
+                    exit();
+                } else {
+                    throw new Exception("Failed to update user: " . $stmt->error);
+                }
+            } catch (Exception $e) {
+                $conn->rollback();
+                $_SESSION['message'][] = ["type" => "danger", "content" => $e->getMessage()];
+            }
+            // finally {
+            //     if (isset($stmt) && $stmt) {
+            //         $stmt->close();
+            //     }
+            // }
+        }
+    } else {
+        $_SESSION['message'][] = ["type" => "danger", "content" => $imageError];
+    }
+}
 ?>
+
+
 
 <head>
     <title>Manage Users | Mohsin Shaheen Construction Company</title>
@@ -153,136 +283,136 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveUserData'])) {
                     <div class="row">
                         <div class="col-12">
                             <?php displaySessionMessage(); ?>
+                            <div id="session-messages">
+                                <!-- Error or success messages will be appended here dynamically via JS -->
+                            </div>
+
                             <h2 class="text-center">Add New User</h2>
                             <div class="card">
                                 <div class="card-body">
-                                    <p class="text-muted fs-14"> </p>
                                     <div class="row">
-                                        <div>
-                                            <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="post" class="needs-validation" novalidate enctype="multipart/form-data">
-                                                <div class="row mb-3">
-                                                    <h3>User Information</h3>
+                                        <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="post" class="needs-validation" novalidate enctype="multipart/form-data">
+                                            <div class="row mb-3">
+                                                <h3>User Information</h3>
 
-                                                    <div class="col-lg-6">
-                                                        <div class="mb-3">
-                                                            <label for="userFirstName" class="form-label">First Name</label>
-                                                            <input type="text" id="userFirstName" name="userFirstName" class="form-control" required placeholder="Enter first name of the user">
-                                                            <div class="valid-feedback">Looks good!</div>
-                                                            <div class="invalid-feedback">Please fill this field.</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-lg-6">
-                                                        <div class="mb-3">
-                                                            <label for="userLastName" class="form-label">Last Name</label>
-                                                            <input type="text" id="userLastName" name="userLastName" class="form-control" required placeholder="Enter last name of the user">
-                                                            <div class="valid-feedback">Looks good!</div>
-                                                            <div class="invalid-feedback">Please fill this field.</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-lg-6">
-                                                        <div class="mb-3">
-                                                            <label for="userCNIC" class="form-label">CNIC No.</label>
-                                                            <input type="number" id="userCNIC" name="userCNIC" class="form-control" required placeholder="Enter CNIC of the user">
-                                                            <div class="valid-feedback">Looks good!</div>
-                                                            <div class="invalid-feedback">Please fill this field.</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-lg-6">
-                                                        <div class="mb-3">
-                                                            <label for="userDOB" class="form-label">Date of Birth.</label>
-                                                            <input type="date" id="userDOB" name="userDOB" class="form-control" required placeholder="Enter Date of Birth of the user">
-                                                            <div class="valid-feedback">Looks good!</div>
-                                                            <div class="invalid-feedback">Please fill this field.</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-lg-6">
-                                                        <div class="mb-3">
-                                                            <label for="userEmail" class="form-label">Email</label>
-                                                            <input type="email" id="userEmail" name="userEmail" class="form-control" required placeholder="Enter email of the user. ">
-                                                            <div class="valid-feedback">Looks good!</div>
-                                                            <div class="invalid-feedback">Please fill this field. Must be unique</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-lg-6">
-                                                        <div class="mb-3">
-                                                            <label for="userName" class="form-label">Username</label>
-                                                            <input type="text" id="userName" name="userName" class="form-control" required placeholder="Enter username of the user. ">
-                                                            <div class="valid-feedback">Looks good!</div>
-                                                            <div class="invalid-feedback">Please fill this field. Must be unique</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-lg-6">
-                                                        <div class="mb-3">
-                                                            <label for="contactNumber" class="form-label">Contact Number</label>
-                                                            <input type="number" id="contactNumber" name="contactNumber" class="form-control" required placeholder="Enter Contact Number of the user. ">
-                                                            <div class="valid-feedback">Looks good!</div>
-                                                            <div class="invalid-feedback">Please fill this field. </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-lg-6">
-                                                        <div class="mb-3">
-                                                            <label for="whatsAppContact" class="form-label">WhatsApp Contact Number</label>
-                                                            <input type="number" id="whatsAppContact" name="whatsAppContact" class="form-control" required placeholder="Enter WhatsApp Contact of the user. ">
-                                                            <div class="valid-feedback">Looks good!</div>
-                                                            <div class="invalid-feedback">Please fill this field. </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-lg-12">
-                                                        <div class="mb-3">
-                                                            <label for="userAddress" class="form-label">Address</label>
-                                                            <input type="text" id="userAddress" name="userAddress" class="form-control" required placeholder="Enter address of the user. ">
-                                                            <div class="valid-feedback">Looks good!</div>
-                                                            <div class="invalid-feedback">Please fill this field. </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-lg-6">
-                                                        <div class="mb-3">
-                                                            <label for="userRole" class="form-label">User Role</label>
-                                                            <select id="userRole" name="userRole" class="form-select select2" data-toggle="select2">
-                                                                <?php foreach ($roles as $role): ?>
-                                                                    <option value="<?php echo htmlspecialchars($role['id']); ?>">
-                                                                        <?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $role['role_name']))); ?>
-                                                                    </option>
-                                                                <?php endforeach; ?>
-                                                            </select>
-                                                            <div class="valid-feedback">Looks good!</div>
-                                                            <div class="invalid-feedback">Please fill this field.</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-lg-6">
-                                                        <div class="mb-3">
-                                                            <label for="userStatus" class="form-label">User Status</label>
-                                                            <select id="userStatus" name="userStatus" class="form-select select2" data-toggle="select2" required>
-                                                                <!-- <option selected disabled value="">Select User Status</option> -->
-                                                                <option value="1">Active</option>
-                                                                <option value="0">Inactive</option>
-                                                            </select>
-                                                            <div class="valid-feedback">Looks good!</div>
-                                                            <div class="invalid-feedback">Please select a status.</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-lg-6">
-                                                        <div class="mb-3">
-                                                            <label for="userProfilePic" class="form-label">Profile Picture</label>
-                                                            <input type="file" id="userProfilePic" name="userProfilePic" class="form-control" onchange="validateImage(this)" required>
-                                                            <div class="valid-feedback">Looks good!</div>
-                                                            <div class="invalid-feedback" id="imageError">Please fill this field.</div>
-                                                        </div>
-                                                    </div>
-
-                                                </div>
-                                                <div class="row mb-3">
-                                                    <div class="col-lg-12 text-center">
-                                                        <button type="submit" id="btnSaveUserData" name="btnSaveUserData" class="btn btn-primary ">Save Role</button>
+                                                <div class="col-lg-6">
+                                                    <div class="mb-2">
+                                                        <label for="userFirstName" class="form-label">First Name *</label>
+                                                        <input type="text" id="userFirstName" name="userFirstName" class="form-control" required placeholder="Enter first name of the user">
+                                                        <div class="valid-feedback">Looks good!</div>
+                                                        <div class="invalid-feedback">Please fill this field.</div>
                                                     </div>
                                                 </div>
-                                            </form>
-                                        </div>
+                                                <div class="col-lg-6">
+                                                    <div class="mb-2">
+                                                        <label for="userLastName" class="form-label">Last Name *</label>
+                                                        <input type="text" id="userLastName" name="userLastName" class="form-control" required placeholder="Enter last name of the user">
+                                                        <div class="valid-feedback">Looks good!</div>
+                                                        <div class="invalid-feedback">Please fill this field.</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="mb-2">
+                                                        <label for="userCNIC" class="form-label">CNIC No. *</label>
+                                                        <input type="tel" id="userCNIC" name="userCNIC" class="form-control" required placeholder="Enter CNIC of the user">
+                                                        <div class="valid-feedback">Looks good!</div>
+                                                        <div class="invalid-feedback">Please fill this field.</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="mb-2">
+                                                        <label for="userDOB" class="form-label">Date of Birth *</label>
+                                                        <input type="date" id="userDOB" name="userDOB" class="form-control" required>
+                                                        <div class="valid-feedback">Looks good!</div>
+                                                        <div class="invalid-feedback">Please fill this field.</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="mb-2">
+                                                        <label for="userEmail" class="form-label">Email *</label>
+                                                        <input type="email" id="userEmail" name="userEmail" class="form-control" required placeholder="Enter email of the user">
+                                                        <div class="valid-feedback">Looks good!</div>
+                                                        <div class="invalid-feedback">Please fill this field.</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="mb-2">
+                                                        <label for="userName" class="form-label">Username *</label>
+                                                        <input type="text" id="userName" name="userName" class="form-control" required placeholder="Enter username of the user">
+                                                        <div class="valid-feedback">Looks good!</div>
+                                                        <div class="invalid-feedback">Please fill this field.</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="mb-2">
+                                                        <label for="contactNumber" class="form-label">Contact Number *</label>
+                                                        <input type="tel" id="contactNumber" name="contactNumber" class="form-control" required placeholder="Enter Contact Number of the user">
+                                                        <div class="valid-feedback">Looks good!</div>
+                                                        <div class="invalid-feedback">Please fill this field.</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="mb-2">
+                                                        <label for="whatsAppContact" class="form-label">WhatsApp Contact Number *</label>
+                                                        <input type="tel" id="whatsAppContact" name="whatsAppContact" class="form-control" required placeholder="Enter WhatsApp Contact of the user">
+                                                        <div class="valid-feedback">Looks good!</div>
+                                                        <div class="invalid-feedback">Please fill this field.</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-12">
+                                                    <div class="mb-2">
+                                                        <label for="userAddress" class="form-label">Address *</label>
+                                                        <input type="text" id="userAddress" name="userAddress" class="form-control" required placeholder="Enter address of the user">
+                                                        <div class="valid-feedback">Looks good!</div>
+                                                        <div class="invalid-feedback">Please fill this field.</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="mb-2">
+                                                        <label for="userRole" class="form-label">User Role *</label>
+                                                        <select id="userRole" name="userRole" class="form-select select2" data-toggle="select2" required>
+                                                            <?php foreach ($roles as $role): ?>
+                                                                <option value="<?php echo htmlspecialchars($role['id']); ?>">
+                                                                    <?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $role['role_name']))); ?>
+                                                                </option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                        <div class="valid-feedback">Looks good!</div>
+                                                        <div class="invalid-feedback">Please fill this field.</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="mb-2">
+                                                        <label for="userStatus" class="form-label">User Status *</label>
+                                                        <select id="userStatus" name="userStatus" class="form-select select2" data-toggle="select2" required>
+                                                            <option value="1">Active</option>
+                                                            <option value="0">Inactive</option>
+                                                        </select>
+                                                        <div class="valid-feedback">Looks good!</div>
+                                                        <div class="invalid-feedback">Please select a status.</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="mb-2">
+                                                        <label for="userProfilePic" class="form-label">Profile Picture *</label>
+                                                        <input type="file" id="userProfilePic" name="userProfilePic" class="form-control" onchange="validateImage(this)" required>
+                                                        <div class="valid-feedback">Looks good!</div>
+                                                        <div class="invalid-feedback" id="imageError">Please fill this field.</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row mb-3">
+                                                <div class="col-lg-12 text-center">
+                                                    <button type="submit" id="btnSaveUserData" name="btnSaveUserData" class="btn btn-primary">Save User</button>
+                                                </div>
+                                            </div>
+                                        </form>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+
                     <div class="row">
                         <div class="col-xl-12">
                             <div class="card">
@@ -361,7 +491,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveUserData'])) {
                                                             echo "<td>" . htmlspecialchars(date('d-M-Y', strtotime($row['created_at']))) . "</td>";
                                                             echo "<td>";
                                                             // Edit button
-                                                            echo "<a href='edit-role.php?id=" . urlencode($row['id']) . "' class='btn btn-warning'><i class='ri-pencil-line'></i></a>";
+                                                            echo "<a href='edit-user.php?id=" . urlencode($row['id']) . "' class='btn btn-warning'><i class='ri-pencil-line'></i></a>";
                                                             echo "  ";
                                                             // Delete button
                                                             echo "<a href='delete-role.php?id=" . urlencode($row['id']) . "' class='btn btn-danger' onclick='return confirmDelete();' ><i class='ri-delete-bin-line'></i></a>";
@@ -456,6 +586,58 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveUserData'])) {
             });
         });
     </script>
+    <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script> -->
+    <script>
+        $(document).ready(function() {
+            function showSessionMessage(type, message) {
+                // This function can simulate adding messages to your session
+                let alertHtml = `<div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                            ${message}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                         </div>`;
+                $("#session-messages").append(alertHtml); // Assuming you have a #session-messages div to append messages
+            }
+
+            function validateField(fieldName, fieldValue) {
+                $.ajax({
+                    url: 'ajax/user-validation.php',
+                    type: 'POST',
+                    data: {
+                        [fieldName]: fieldValue
+                    },
+                    success: function(response) {
+                        let data = JSON.parse(response);
+
+                        if (data.status === 'error') {
+                            // Show the relevant error message for the field
+                            if (data.messages[fieldName]) {
+                                showSessionMessage('danger', data.messages[fieldName]);
+                            }
+                        } else {
+                            // If valid, you can remove any previous messages or just proceed
+                            console.log(fieldName + ' is valid.');
+                        }
+                    }
+                });
+            }
+
+            // CNIC validation on keyup
+            $('#userCNIC').on('keyup', function() {
+                validateField('cnic', $(this).val());
+            });
+
+            // Email validation on keyup
+            $('#userEmail').on('keyup', function() {
+                validateField('email', $(this).val());
+            });
+
+            // Username validation on keyup
+            $('#userName').on('keyup', function() {
+                validateField('username', $(this).val());
+            });
+        });
+    </script>
+
 
 </body>
 

@@ -6,50 +6,50 @@ include 'layouts/functions.php';
 
 // Check if the role ID is provided via GET
 if (!isset($_GET['id']) || empty($_GET['id'])) {
-    $_SESSION['message'][] = array("type" => "error", "content" => "No role ID provided.");
+    $_SESSION['message'][] = ["type" => "error", "content" => "No role ID provided."];
     header("Location: user-roles.php");
     exit();
 }
 
 // Sanitize and validate the input to prevent SQL injection
-$roleId = mysqli_real_escape_string($conn, $_GET['id']);
+$roleId = (int)$_GET['id']; // Cast to integer
 
 // Start a transaction
-mysqli_begin_transaction($conn, MYSQLI_TRANS_START_READ_WRITE);
+$conn->begin_transaction(MYSQLI_TRANS_START_READ_WRITE);
 
 try {
     // Prepare the DELETE statement
     $query = "DELETE FROM roles WHERE id = ?";
-    $stmt = mysqli_prepare($conn, $query);
+    $stmt = $conn->prepare($query);
 
     // Throw an exception if the prepare statement fails
     if ($stmt === false) {
-        throw new Exception("Prepare statement failed: " . mysqli_error($conn));
+        throw new Exception("Prepare statement failed: " . $conn->error);
     }
 
     // Bind the role ID to the prepared statement
-    mysqli_stmt_bind_param($stmt, "i", $roleId);
+    $stmt->bind_param("i", $roleId);
 
     // Execute the statement
-    if (!mysqli_stmt_execute($stmt)) {
-        throw new Exception("Execute statement failed: " . mysqli_stmt_error($stmt));
+    if (!$stmt->execute()) {
+        throw new Exception("Execute statement failed: " . $stmt->error);
     }
 
     // Commit the transaction
-    mysqli_commit($conn);
+    $conn->commit();
 
     // Set success message in session
-    $_SESSION['message'][] = array("type" => "success", "content" => "Role deleted successfully!");
+    $_SESSION['message'][] = ["type" => "success", "content" => "Role deleted successfully!"];
 
     // Redirect back to the roles page
     header("Location: user-roles.php");
     exit();
 } catch (Exception $e) {
     // Rollback the transaction if any error occurs
-    mysqli_rollback($conn);
+    $conn->rollback();
 
     // Set error message in session
-    $_SESSION['message'][] = array("type" => "error", "content" => $e->getMessage());
+    $_SESSION['message'][] = ["type" => "error", "content" => $e->getMessage()];
 
     // Redirect back to the roles page
     header("Location: user-roles.php");
@@ -57,7 +57,7 @@ try {
 } finally {
     // Close the statement and the connection
     if (isset($stmt)) {
-        mysqli_stmt_close($stmt);
+        $stmt->close();
     }
-    mysqli_close($conn);
+    $conn->close();
 }

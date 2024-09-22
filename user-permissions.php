@@ -57,25 +57,25 @@ include 'layouts/main.php';
                                             <tbody>
                                                 <?php
                                                 try {
-                                                    // Start transaction if needed
-                                                    mysqli_begin_transaction($conn);
+                                                    // Start a transaction
+                                                    $conn->begin_transaction();
 
-                                                    // Define the query to fetch roles with the user who created them
+                                                    // Define the query to fetch permissions with the user who created them
                                                     $query = "SELECT p.id, p.permission_name, p.status, p.created_at, u.username AS created_by
                                                                 FROM permissions p
-                                                                LEFT JOIN users u ON p.created_by = u.id;";
+                                                                LEFT JOIN users u ON p.created_by = u.id";
 
-                                                    // Execute the query
-                                                    $result = mysqli_query($conn, $query);
+                                                    // Prepare and execute the query
+                                                    $stmt = $conn->prepare($query);
+                                                    $stmt->execute();
 
-                                                    // Check for query execution errors
-                                                    if (!$result) {
-                                                        throw new Exception("Error executing query: " . mysqli_error($conn));
-                                                    }
+                                                    // Get the result
+                                                    $result = $stmt->get_result();
 
-                                                    // If the query is successful, loop through the results
-                                                    if (mysqli_num_rows($result) > 0) {
-                                                        while ($row = mysqli_fetch_assoc($result)) {
+                                                    // Check if any results were returned
+                                                    if ($result->num_rows > 0) {
+                                                        // Loop through the result set
+                                                        while ($row = $result->fetch_assoc()) {
                                                             echo "<tr>";
                                                             echo "<td>" . htmlspecialchars($row['id']) . "</td>";
                                                             echo "<td>" . htmlspecialchars(ucwords(str_replace('_', ' ', $row['permission_name']))) . "</td>";
@@ -86,32 +86,30 @@ include 'layouts/main.php';
 
                                                             echo "<td>" . htmlspecialchars($row['created_by']) . "</td>";
                                                             echo "<td>" . htmlspecialchars(date('d-M-Y', strtotime($row['created_at']))) . "</td>";
-                                                            // echo "<td>";
-                                                            // echo "<a href='edit-role.php?id=" . urlencode($row['id']) . "' class='btn btn-warning'><i class='ri-pencil-line'></i></a>";
-                                                            // echo "  ";
-                                                            // echo "<a href='delete-role.php?id=" . urlencode($row['id']) . "' class='btn btn-danger' onclick='return confirmDelete();' ><i class='ri-delete-bin-line'></i></a>";
-                                                            // echo "</td>";
                                                             echo "</tr>";
                                                         }
                                                     } else {
-                                                        echo "<tr><td colspan='6'>No roles found</td></tr>";
+                                                        echo "<tr><td colspan='6'>No permissions found</td></tr>";
                                                     }
 
-                                                    // Commit transaction (optional if you're modifying data)
-                                                    mysqli_commit($conn);
+                                                    // Commit the transaction
+                                                    $conn->commit();
                                                 } catch (Exception $e) {
                                                     // Rollback in case of error
-                                                    mysqli_rollback($conn);
+                                                    $conn->rollback();
 
-                                                    // Display or log the error
-                                                    echo "<tr><td colspan='6'>Error: " . $e->getMessage() . "</td></tr>";
+                                                    // Display error
+                                                    echo "<tr><td colspan='6'>Error: " . htmlspecialchars($e->getMessage()) . "</td></tr>";
                                                 } finally {
-                                                    // Close the connection
-                                                    mysqli_close($conn);
+                                                    // Close the statement and connection
+                                                    if (isset($stmt)) {
+                                                        $stmt->close();
+                                                    }
+                                                    $conn->close();
                                                 }
                                                 ?>
-
                                             </tbody>
+
                                         </table>
                                     </div>
                                 </div>

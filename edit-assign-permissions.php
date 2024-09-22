@@ -5,94 +5,101 @@ include 'layouts/functions.php';
 include 'layouts/main.php';
 
 $rolePermissionId = isset($_GET['id']) ? intval($_GET['id']) : 0;
-
 $rolePermission = null;
 
 try {
     if ($rolePermissionId > 0) {
         // Start the transaction
-        mysqli_begin_transaction($conn);
+        $conn->begin_transaction();
 
         // Prepare the query to fetch the role_permission details
         $query = "
-            SELECT rp.id, rp.role_id, rp.permission_id, rp.status, rp.created_at, r.role_name, p.permission_name 
+            SELECT rp.id, rp.role_id, rp.permission_id, rp.status, rp.created_at, 
+                   r.role_name, p.permission_name 
             FROM role_permissions rp
             LEFT JOIN roles r ON r.id = rp.role_id
             LEFT JOIN permissions p ON p.id = rp.permission_id
-            WHERE rp.id = ?;
+            WHERE rp.id = ?
         ";
 
-        $stmt = mysqli_prepare($conn, $query);
-        mysqli_stmt_bind_param($stmt, "i", $rolePermissionId);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
+        $stmt = $conn->prepare($query);
+        if (!$stmt) {
+            throw new Exception('Prepare failed: ' . $conn->error);
+        }
+
+        // Bind the rolePermissionId to the query
+        $stmt->bind_param("i", $rolePermissionId);
+        $stmt->execute();
+        $result = $stmt->get_result();
 
         // Check if we got a result
-        if ($result && mysqli_num_rows($result) > 0) {
-            $rolePermission = mysqli_fetch_assoc($result);
+        if ($result && $result->num_rows > 0) {
+            $rolePermission = $result->fetch_assoc();
         } else {
             throw new Exception('No role_permission record found.');
         }
 
         // Commit the transaction
-        mysqli_commit($conn);
+        $conn->commit();
     } else {
         throw new Exception('Invalid role_permission ID.');
     }
 } catch (Exception $e) {
     // Rollback the transaction in case of error
-    mysqli_rollback($conn);
+    $conn->rollback();
 
     // Set an error message and redirect or handle it accordingly
     $_SESSION['message'] = ['type' => 'error', 'text' => $e->getMessage()];
     header('Location: manage-role-permissions.php'); // Redirect back to manage page if there's an error
     exit;
 }
-// finally {
-//     // Close the connection
-//     mysqli_close($conn);
-// }
-
-
+// No need to close the connection here if you have persistent connection handling
 // Fetch roles for the 'roleName' dropdown
 $roles = [];
 $permissions = [];
 
 try {
     // Start the transaction
-    mysqli_begin_transaction($conn);
+    $conn->begin_transaction();
 
     // Query to fetch roles
-    $queryRoles = "SELECT id, role_name FROM roles  WHERE status = 1 ORDER BY id ASC;";
-    $resultRoles = mysqli_query($conn, $queryRoles);
-    if ($resultRoles) {
-        while ($row = mysqli_fetch_assoc($resultRoles)) {
-            $roles[] = $row;
-        }
-    } else {
-        throw new Exception('Error fetching roles: ' . mysqli_error($conn));
+    $queryRoles = "SELECT id, role_name FROM roles WHERE status = 1 ORDER BY id ASC;";
+    $stmtRoles = $conn->prepare($queryRoles);
+    if (!$stmtRoles) {
+        throw new Exception('Prepare roles failed: ' . $conn->error);
+    }
+    $stmtRoles->execute();
+    $resultRoles = $stmtRoles->get_result();
+    while ($row = $resultRoles->fetch_assoc()) {
+        $roles[] = $row;
     }
 
     // Query to fetch permissions
-    $queryPermissions = "SELECT id, permission_name FROM permissions  WHERE status = 1 ORDER BY id ASC;";
-    $resultPermissions = mysqli_query($conn, $queryPermissions);
-    if ($resultPermissions) {
-        while ($row = mysqli_fetch_assoc($resultPermissions)) {
-            $permissions[] = $row;
-        }
-    } else {
-        throw new Exception('Error fetching permissions: ' . mysqli_error($conn));
+    $queryPermissions = "SELECT id, permission_name FROM permissions WHERE status = 1 ORDER BY id ASC;";
+    $stmtPermissions = $conn->prepare($queryPermissions);
+    if (!$stmtPermissions) {
+        throw new Exception('Prepare permissions failed: ' . $conn->error);
+    }
+    $stmtPermissions->execute();
+    $resultPermissions = $stmtPermissions->get_result();
+    while ($row = $resultPermissions->fetch_assoc()) {
+        $permissions[] = $row;
     }
 
     // Commit the transaction
-    mysqli_commit($conn);
+    $conn->commit();
 } catch (Exception $e) {
     // Rollback the transaction on error
-    mysqli_rollback($conn);
+    $conn->rollback();
     $_SESSION['message'] = ['type' => 'error', 'text' => $e->getMessage()];
 }
 
+// Close the statement objects
+$stmtRoles->close();
+$stmtPermissions->close();
+// No need to close connection explicitly if you're reusing it
 ?>
+
 
 <head>
     <title>Assign Permissions | Mohsin Shaheen Construction Company</title>

@@ -4,47 +4,47 @@ include 'layouts/config.php';
 include 'layouts/functions.php';
 include 'layouts/main.php';
 
-// Fetch roles for the 'roleName' dropdown
+// Fetch roles and permissions for dropdowns
 $roles = [];
 $permissions = [];
 
 try {
     // Start the transaction
-    mysqli_begin_transaction($conn);
+    $conn->begin_transaction();
 
     // Query to fetch roles
-    $queryRoles = "SELECT id, role_name FROM roles  WHERE status = 1 ORDER BY id ASC;";
-    $resultRoles = mysqli_query($conn, $queryRoles);
-    if ($resultRoles) {
-        while ($row = mysqli_fetch_assoc($resultRoles)) {
-            $roles[] = $row;
-        }
-    } else {
-        throw new Exception('Error fetching roles: ' . mysqli_error($conn));
+    $queryRoles = "SELECT id, role_name FROM roles WHERE status = 1 ORDER BY id ASC;";
+    $stmtRoles = $conn->prepare($queryRoles);
+    $stmtRoles->execute();
+    $resultRoles = $stmtRoles->get_result();
+
+    while ($row = $resultRoles->fetch_assoc()) {
+        $roles[] = $row;
     }
 
     // Query to fetch permissions
-    $queryPermissions = "SELECT id, permission_name FROM permissions  WHERE status = 1 ORDER BY id ASC;";
-    $resultPermissions = mysqli_query($conn, $queryPermissions);
-    if ($resultPermissions) {
-        while ($row = mysqli_fetch_assoc($resultPermissions)) {
-            $permissions[] = $row;
-        }
-    } else {
-        throw new Exception('Error fetching permissions: ' . mysqli_error($conn));
+    $queryPermissions = "SELECT id, permission_name FROM permissions WHERE status = 1 ORDER BY id ASC;";
+    $stmtPermissions = $conn->prepare($queryPermissions);
+    $stmtPermissions->execute();
+    $resultPermissions = $stmtPermissions->get_result();
+
+    while ($row = $resultPermissions->fetch_assoc()) {
+        $permissions[] = $row;
     }
 
     // Commit the transaction
-    mysqli_commit($conn);
+    $conn->commit();
 } catch (Exception $e) {
     // Rollback the transaction on error
-    mysqli_rollback($conn);
-    $_SESSION['message'] = ['type' => 'error', 'text' => $e->getMessage()];
+    $conn->rollback();
+    $_SESSION['message'] = ['type' => 'error', 'content' => $e->getMessage()];
 }
 
-// Close the database connection
-// mysqli_close($conn);
+// Close the statement and connection
+$stmtRoles->close();
+$stmtPermissions->close();
 
+// If form is submitted
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnAssignRole'])) {
     // Get POST data and sanitize
     $roleId = isset($_POST['roleName']) ? (int)$_POST['roleName'] : 0;
@@ -55,22 +55,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnAssignRole'])) {
 
     try {
         // Start the transaction
-        mysqli_begin_transaction($conn);
+        $conn->begin_transaction();
 
         // Insert into role_permissions table
-        $stmt = mysqli_prepare($conn, "INSERT INTO role_permissions (role_id, permission_id, created_at, updated_at, created_by, updated_by, status) VALUES (?, ?, NOW(), NOW(), ?, ?, ?)");
-        mysqli_stmt_bind_param($stmt, 'iiiii', $roleId, $permissionId, $createdBy, $updatedBy, $status);
-        if (mysqli_stmt_execute($stmt)) {
+        $stmt = $conn->prepare("INSERT INTO role_permissions (role_id, permission_id, created_at, updated_at, created_by, updated_by, status) 
+                                VALUES (?, ?, NOW(), NOW(), ?, ?, ?)");
+        $stmt->bind_param('iiiii', $roleId, $permissionId, $createdBy, $updatedBy, $status);
+
+        if ($stmt->execute()) {
             $_SESSION['message'][] = ['type' => 'success', 'content' => 'Permission assigned successfully!'];
         } else {
-            throw new Exception('Error inserting data: ' . mysqli_error($conn));
+            throw new Exception('Error inserting data: ' . $stmt->error);
         }
 
         // Commit the transaction
-        mysqli_commit($conn);
+        $conn->commit();
     } catch (Exception $e) {
         // Rollback the transaction on error
-        mysqli_rollback($conn);
+        $conn->rollback();
         $_SESSION['message'][] = ['type' => 'error', 'content' => $e->getMessage()];
     }
 
@@ -78,6 +80,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnAssignRole'])) {
     header('Location: assign-permissions.php');
     exit();
 }
+
+// Close the database connection
+// $conn->close();
+
+
 // Code handling the update operation
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['btnUpdateAssignPermission'])) {
     // Get and sanitize POST data
@@ -93,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['btnUpdateAssignPermiss
         }
 
         // Begin transaction
-        mysqli_begin_transaction($conn, MYSQLI_TRANS_START_READ_WRITE);
+        $conn->begin_transaction(MYSQLI_TRANS_START_READ_WRITE);
 
         // Prepare the update query
         $query = "
@@ -101,43 +108,41 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['btnUpdateAssignPermiss
             SET role_id = ?, permission_id = ?, status = ?
             WHERE id = ?;
         ";
-        $stmt = mysqli_prepare($conn, $query);
+        $stmt = $conn->prepare($query);
 
         if ($stmt === false) {
-            throw new Exception('Prepare statement failed: ' . mysqli_error($conn));
+            throw new Exception('Prepare statement failed: ' . $conn->error);
         }
 
         // Bind parameters and execute statement
-        mysqli_stmt_bind_param($stmt, "iiii", $roleId, $permissionId, $status, $rolePermissionId);
-        if (!mysqli_stmt_execute($stmt)) {
-            throw new Exception('Execute statement failed: ' . mysqli_stmt_error($stmt));
+        $stmt->bind_param("iiii", $roleId, $permissionId, $status, $rolePermissionId);
+        if (!$stmt->execute()) {
+            throw new Exception('Execute statement failed: ' . $stmt->error);
         }
 
         // Commit transaction
-        mysqli_commit($conn);
+        $conn->commit();
 
         // Set success message and redirect
         $_SESSION['message'][] = ['type' => 'success', 'content' => 'Role permission updated successfully.'];
-
-        // $_SESSION['message'] = ['type' => 'success', 'content' => 'Role permission updated successfully.'];
     } catch (Exception $e) {
         // Rollback transaction on error
-        mysqli_rollback($conn);
+        $conn->rollback();
 
         // Set error message
         $_SESSION['message'][] = ['type' => 'error', 'content' => $e->getMessage()];
     } finally {
         // Ensure statement and connection are closed
         if (isset($stmt)) {
-            mysqli_stmt_close($stmt);
+            $stmt->close();
         }
-        // mysqli_close($conn);
 
         // Redirect to ensure page reload
         header('Location: assign-permissions.php');
         exit();
     }
 }
+
 
 
 ?>
@@ -264,35 +269,39 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['btnUpdateAssignPermiss
                                             <tbody>
                                                 <?php
                                                 try {
-                                                    // Start transaction if needed
-                                                    mysqli_begin_transaction($conn);
+                                                    // Start the transaction
+                                                    $conn->begin_transaction();
 
                                                     // Define the query to fetch roles with the user who created them
-                                                    $query = "SELECT rp.id, rp.status, rp.created_at,
-                                                                r.role_name, p.permission_name,
-                                                                u.username AS created_by
-                                                                FROM role_permissions rp
-                                                                LEFT JOIN roles r ON r.id = rp.role_id
-                                                                LEFT JOIN permissions p ON p.id = rp.permission_id
-                                                                LEFT JOIN users u ON u.id = rp.created_by
-                                                                WHERE rp.status = 1;";
+                                                    $query = "
+            SELECT rp.id, rp.status, rp.created_at,
+                   r.role_name, p.permission_name,
+                   u.username AS created_by
+            FROM role_permissions rp
+            LEFT JOIN roles r ON r.id = rp.role_id
+            LEFT JOIN permissions p ON p.id = rp.permission_id
+            LEFT JOIN users u ON u.id = rp.created_by
+            WHERE rp.status = 1;
+        ";
 
-                                                    // Execute the query
-                                                    $result = mysqli_query($conn, $query);
-
-                                                    // Check for query execution errors
-                                                    if (!$result) {
-                                                        throw new Exception("Error executing query: " . mysqli_error($conn));
+                                                    // Prepare the statement
+                                                    $stmt = $conn->prepare($query);
+                                                    if (!$stmt) {
+                                                        throw new Exception('Prepare statement failed: ' . $conn->error);
                                                     }
 
-                                                    // If the query is successful, loop through the results
-                                                    if (mysqli_num_rows($result) > 0) {
-                                                        while ($row = mysqli_fetch_assoc($result)) {
+                                                    // Execute the query
+                                                    $stmt->execute();
+                                                    $result = $stmt->get_result();
+
+                                                    // Check if the query returned results
+                                                    if ($result && $result->num_rows > 0) {
+                                                        // Loop through the results
+                                                        while ($row = $result->fetch_assoc()) {
                                                             echo "<tr>";
                                                             echo "<td>" . htmlspecialchars($row['id']) . "</td>";
                                                             echo "<td>" . htmlspecialchars(ucwords(str_replace('_', ' ', $row['role_name']))) . "</td>";
                                                             echo "<td>" . htmlspecialchars(ucwords(str_replace('_', ' ', $row['permission_name']))) . "</td>";
-
 
                                                             // Convert status to Active/Inactive
                                                             $statusText = $row['status'] == 1 ? 'Active' : 'Not Active';
@@ -304,30 +313,33 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['btnUpdateAssignPermiss
                                                             echo "<a href='edit-assign-permissions.php?id=" . urlencode($row['id']) . "' class='btn btn-warning'><i class='ri-pencil-line'></i></a>";
                                                             echo "  ";
                                                             // Delete button
-                                                            echo "<a href='delete-assign-permissions.php?id=" . urlencode($row['id']) . "' class='btn btn-danger' onclick='return confirmDelete();' ><i class='ri-delete-bin-line'></i></a>";
+                                                            echo "<a href='delete-assign-permissions.php?id=" . urlencode($row['id']) . "' class='btn btn-danger' onclick='return confirmDelete();'><i class='ri-delete-bin-line'></i></a>";
                                                             echo "</td>";
                                                             echo "</tr>";
                                                         }
+                                                    } else {
+                                                        echo "<tr><td colspan='6'>No permissions found</td></tr>";
                                                     }
-                                                    // else {
-                                                    //     echo "<tr><td colspan='6'>No roles found</td></tr>";
-                                                    // }
 
-                                                    // Commit transaction (optional if you're modifying data)
-                                                    mysqli_commit($conn);
+                                                    // Commit the transaction
+                                                    $conn->commit();
                                                 } catch (Exception $e) {
                                                     // Rollback in case of error
-                                                    mysqli_rollback($conn);
+                                                    $conn->rollback();
 
                                                     // Display or log the error
                                                     echo "<tr><td colspan='6'>Error: " . $e->getMessage() . "</td></tr>";
                                                 } finally {
-                                                    // Close the connection
-                                                    // mysqli_close($conn);
+                                                    // Close the statement
+                                                    if (isset($stmt)) {
+                                                        $stmt->close();
+                                                    }
+                                                    // Close the connection if necessary
+                                                    // $conn->close();
                                                 }
                                                 ?>
-
                                             </tbody>
+
                                         </table>
                                     </div>
                                 </div>

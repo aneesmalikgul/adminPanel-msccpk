@@ -6,35 +6,33 @@ include 'layouts/main.php';
 
 // Check if the role ID is provided
 if (!isset($_GET['id']) || empty($_GET['id'])) {
-    $_SESSION['message'][] = array("type" => "error", "content" => "No role ID provided.");
+    $_SESSION['message'][] = ["type" => "error", "content" => "No role ID provided."];
     header("Location: user-roles.php");
     exit();
 }
 
 // Sanitize the input to prevent SQL injection
-$roleId = mysqli_real_escape_string($conn, $_GET['id']);
+$roleId = (int)$_GET['id']; // Cast to integer
 
 // Fetch role details
 $query = "SELECT role_name, status FROM roles WHERE id = ?";
-$stmt = mysqli_prepare($conn, $query);
-mysqli_stmt_bind_param($stmt, "i", $roleId);
-mysqli_stmt_execute($stmt);
-$result = mysqli_stmt_get_result($stmt);
+$stmt = $conn->prepare($query);
+$stmt->bind_param("i", $roleId);
+$stmt->execute();
+$result = $stmt->get_result();
 
-if ($result && mysqli_num_rows($result) > 0) {
+if ($result && $result->num_rows > 0) {
     // Fetch the role details
-    $role = mysqli_fetch_assoc($result);
+    $role = $result->fetch_assoc();
 } else {
     // If no role is found, set an error message and redirect back
-    $_SESSION['message'][] = array("type" => "error", "content" => "Role not found.");
+    $_SESSION['message'][] = ["type" => "error", "content" => "Role not found."];
     header("Location: user-roles.php");
     exit();
 }
 
-// Close the statement and connection
-mysqli_stmt_close($stmt);
-// mysqli_close($conn);
-
+// Close the statement
+$stmt->close();
 ?>
 
 
@@ -74,7 +72,7 @@ mysqli_stmt_close($stmt);
                                     <p class="text-muted fs-14"> </p>
                                     <div class="row">
                                         <div>
-                                            <form action="<?php echo htmlspecialchars("user-roles.php"); ?>" method="post" class="needs-validation" novalidate enctype="multipart/form-data">
+                                            <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="post" class="needs-validation" novalidate enctype="multipart/form-data">
                                                 <div class="row mb-3">
                                                     <h3>Update Role Information</h3>
                                                     <!-- Hidden input to store the role ID -->
@@ -102,7 +100,7 @@ mysqli_stmt_close($stmt);
                                                 </div>
                                                 <div class="row mb-3">
                                                     <div class="col-lg-12 text-center">
-                                                        <button type="submit" id="btnUpdateRole" name="btnUpdateRole" class="btn btn-primary ">Update Role</button>
+                                                        <button type="submit" id="btnUpdateRole" name="btnUpdateRole" class="btn btn-primary">Update Role</button>
                                                     </div>
                                                 </div>
                                             </form>
