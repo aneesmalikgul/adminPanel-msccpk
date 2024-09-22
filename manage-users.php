@@ -205,10 +205,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                 if (!empty($imagePath)) {
                     $updateQuery .= ", profile_pic_path=?";
                     $queryParams = [$userFirstName, $userLastName, $userCNIC, $userDOB, $userEmail, $userName, $contactNumber, $whatsAppContact, $userAddress, $userRole, $userStatus, $updatedBy, $updatedAt, $imagePath, $userId];
-                    $paramTypes = "ssssssisssisssi";
+                    $paramTypes = "ssssssssssisssi";
                 } else {
                     $queryParams = [$userFirstName, $userLastName, $userCNIC, $userDOB, $userEmail, $userName, $contactNumber, $whatsAppContact, $userAddress, $userRole, $userStatus, $updatedBy, $updatedAt, $userId];
-                    $paramTypes = "ssssssisssissi";
+                    $paramTypes = "ssssssssssissi";
                 }
 
                 // Add where clause for user ID

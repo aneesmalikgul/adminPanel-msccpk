@@ -133,7 +133,7 @@ try {
                                     <p class="text-muted fs-14"> </p>
                                     <div class="row">
                                         <div>
-                                            <form action="<?php echo htmlspecialchars('update-user.php'); ?>" method="post" class="needs-validation" novalidate enctype="multipart/form-data">
+                                            <form action="<?php echo htmlspecialchars('manage-users.php'); ?>" method="post" class="needs-validation" novalidate enctype="multipart/form-data">
                                                 <div class="row mb-3">
                                                     <h3>User Information</h3>
                                                     <input type="hidden" name="userId" value="<?php echo htmlspecialchars($user['id']); ?>">
@@ -249,8 +249,8 @@ try {
                                                         <div class="mb-2">
                                                             <label for="userStatus" class="form-label">User Status *</label>
                                                             <select id="userStatus" name="userStatus" class="form-select select2" data-toggle="select2" required>
-                                                                <option value="1" <?php echo $user['status'] == 1 ? 'selected' : ''; ?>>Active</option>
-                                                                <option value="0" <?php echo $user['status'] == 0 ? 'selected' : ''; ?>>Inactive</option>
+                                                                <option value="1" <?php echo $user['is_active'] == 1 ? 'selected' : ''; ?>>Active</option>
+                                                                <option value="0" <?php echo $user['is_active'] == 0 ? 'selected' : ''; ?>>Inactive</option>
                                                             </select>
                                                             <div class="valid-feedback">Looks good!</div>
                                                             <div class="invalid-feedback">Please select a status.</div>
