@@ -342,7 +342,9 @@
             <li class="dropdown">
                 <a class="nav-link dropdown-toggle arrow-none nav-user px-2" data-bs-toggle="dropdown" href="#" role="button" aria-haspopup="false" aria-expanded="false">
                     <span class="account-user-avatar">
-                        <img src="assets/images/users/avatar-1.jpg" alt="user-image" width="32" class="rounded-circle">
+                        <!-- <img src="assets/images/users/avatar-1.jpg" alt="user-image" width="32" class="rounded-circle"> -->
+                        <img src="<?php echo rowInfo($conn, 'users', 'profile_pic_path', $_SESSION['user_id']); ?>" alt="user-image" width="32" class="rounded-circle">
+
                     </span>
                     <span class="d-lg-flex flex-column gap-1 d-none">
                         <h5 class="my-0"><?php echo $_SESSION["first_name"] . " " . $_SESSION["last_name"]; ?></h5>

@@ -120,3 +120,88 @@ function displaySessionMessage()
               </script>";
     }
 }
+
+function checkUniqueField($conn, $field, $value, $userId = null)
+{
+    // Prepare the base query
+    $query = "SELECT COUNT(*) as count FROM users WHERE {$field} = ?";
+
+    // Add the condition for excluding the current user ID if provided
+    if ($userId !== null) {
+        $query .= " AND id != ?";
+    }
+
+    // Prepare the statement
+    $stmt = $conn->prepare($query);
+
+    // Bind parameters
+    if ($userId !== null) {
+        $stmt->bind_param("si", $value, $userId);
+    } else {
+        $stmt->bind_param("s", $value);
+    }
+
+    // Execute the query
+    $stmt->execute();
+
+    // Fetch result
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $stmt->close();
+
+    // Return true if the count is greater than 0, indicating a duplicate
+    return $row['count'] > 0;
+}
+
+// Function to fetch a specific column value from any table based on column name and ID
+function rowInfo($conn, $tableName, $columnName, $id)
+{
+    // Start a transaction
+    $conn->begin_transaction();
+
+    try {
+        // Use prepared statement to prevent SQL injection
+        $query = "SELECT {$columnName} FROM {$tableName} WHERE id = ?";
+
+        // Prepare the SQL query
+        $stmt = $conn->prepare($query);
+
+        // Bind the parameter (assuming ID is an integer)
+        $stmt->bind_param("i", $id); // Adjust type based on ID datatype
+
+        // Execute the query
+        $stmt->execute();
+
+        // Fetch result
+        $result = $stmt->get_result();
+
+        // Check if a row was found
+        if ($result->num_rows > 0) {
+            // Fetch the row as an associative array
+            $row = $result->fetch_assoc();
+            $value = $row[$columnName]; // Return the specific column value
+
+            // Commit the transaction
+            $conn->commit();
+
+            return $value;
+        } else {
+            // Return null if no row was found
+            $conn->commit(); // Commit if no errors occurred
+            return null;
+        }
+    } catch (Exception $e) {
+        // Rollback the transaction on error
+        $conn->rollback();
+
+        // Handle the error (optional: log it or rethrow)
+        $_SESSION['message'][] = ["type" => "danger", "content" => "Error fetching data: " . $e->getMessage()];
+
+        return null; // Or handle error appropriately
+    } finally {
+        // Close the statement
+        if (isset($stmt) && $stmt) {
+            $stmt->close();
+        }
+    }
+}

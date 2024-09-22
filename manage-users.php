@@ -86,16 +86,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveUserData'])) {
 
     // Check for uniqueness
     if (empty($imageError)) {
-        $checkQuery = "SELECT COUNT(*) FROM users WHERE email = ? OR username = ? OR cnic = ?";
-        $stmt = $conn->prepare($checkQuery);
-        $stmt->bind_param("ssi", $userEmail, $userName, $userCNIC);
-        $stmt->execute();
-        $stmt->bind_result($count);
-        $stmt->fetch();
-        $stmt->close();
+        // $checkQuery = "SELECT COUNT(*) FROM users WHERE email = ? OR username = ? OR cnic = ?";
+        // $stmt = $conn->prepare($checkQuery);
+        // $stmt->bind_param("ssi", $userEmail, $userName, $userCNIC);
+        // $stmt->execute();
+        // $stmt->bind_result($count);
+        // $stmt->fetch();
+        // $stmt->close();
 
-        if ($count > 0) {
-            $_SESSION['message'][] = ["type" => "danger", "content" => "Email, Username, or CNIC already exists."];
+        // if ($count > 0) {
+        //     $_SESSION['message'][] = ["type" => "danger", "content" => "Email, Username, or CNIC already exists."];
+
+
+        // Check if email, username, or CNIC already exists for another user
+        if (checkUniqueField($conn, 'email', $userEmail)) {
+            $_SESSION['message'][] = ["type" => "danger", "content" => "Email already exists for another user."];
+        } elseif (checkUniqueField($conn, 'username', $userName)) {
+            $_SESSION['message'][] = ["type" => "danger", "content" => "Username already exists for another user."];
+        } elseif (checkUniqueField($conn, 'cnic', $userCNIC)) {
+            $_SESSION['message'][] = ["type" => "danger", "content" => "CNIC already exists for another user."];
         } else {
             // Start a transaction
             $conn->begin_transaction();
@@ -132,7 +141,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveUserData'])) {
         $_SESSION['message'][] = ["type" => "danger", "content" => $imageError];
     }
 }
-
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) {
     // Collect and sanitize inputs
@@ -183,16 +191,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
 
     // Check for uniqueness, except for the current user being updated
     if (empty($imageError)) {
-        $checkQuery = "SELECT COUNT(*) FROM users WHERE (email = ? OR username = ? OR cnic = ?) AND id != ?";
-        $stmt = $conn->prepare($checkQuery);
-        $stmt->bind_param("ssii", $userEmail, $userName, $userCNIC, $userId);
-        $stmt->execute();
-        $stmt->bind_result($count);
-        $stmt->fetch();
-        $stmt->close();
 
-        if ($count > 0) {
-            $_SESSION['message'][] = ["type" => "danger", "content" => "Email, Username, or CNIC already exists for another user."];
+        // Check if email, username, or CNIC already exists for another user
+        if (checkUniqueField($conn, 'email', $userEmail, $userId)) {
+            $_SESSION['message'][] = ["type" => "danger", "content" => "Email already exists for another user."];
+        } elseif (checkUniqueField($conn, 'username', $userName, $userId)) {
+            $_SESSION['message'][] = ["type" => "danger", "content" => "Username already exists for another user."];
+        } elseif (checkUniqueField($conn, 'cnic', $userCNIC, $userId)) {
+            $_SESSION['message'][] = ["type" => "danger", "content" => "CNIC already exists for another user."];
         } else {
             // Start a transaction
             $conn->begin_transaction();
@@ -233,16 +239,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                 $conn->rollback();
                 $_SESSION['message'][] = ["type" => "danger", "content" => $e->getMessage()];
             }
-            // finally {
-            //     if (isset($stmt) && $stmt) {
-            //         $stmt->close();
-            //     }
-            // }
         }
     } else {
         $_SESSION['message'][] = ["type" => "danger", "content" => $imageError];
     }
 }
+
 ?>
 
 
@@ -314,7 +316,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                                                 <div class="col-lg-6">
                                                     <div class="mb-2">
                                                         <label for="userCNIC" class="form-label">CNIC No. *</label>
-                                                        <input type="tel" id="userCNIC" name="userCNIC" class="form-control" required placeholder="Enter CNIC of the user">
+                                                        <input type="text" id="userCNIC" name="userCNIC" class="form-control" required placeholder="Enter CNIC of the user" data-toggle="input-mask" data-mask-format="00000-0000000-0">
                                                         <div class="valid-feedback">Looks good!</div>
                                                         <div class="invalid-feedback">Please fill this field.</div>
                                                     </div>
@@ -346,7 +348,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                                                 <div class="col-lg-6">
                                                     <div class="mb-2">
                                                         <label for="contactNumber" class="form-label">Contact Number *</label>
-                                                        <input type="tel" id="contactNumber" name="contactNumber" class="form-control" required placeholder="Enter Contact Number of the user">
+                                                        <input type="tel" id="contactNumber" name="contactNumber" class="form-control" required placeholder="Enter Contact Number of the user" data-toggle="input-mask" data-mask-format="(+00)-000-0000000">
                                                         <div class="valid-feedback">Looks good!</div>
                                                         <div class="invalid-feedback">Please fill this field.</div>
                                                     </div>
@@ -354,7 +356,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                                                 <div class="col-lg-6">
                                                     <div class="mb-2">
                                                         <label for="whatsAppContact" class="form-label">WhatsApp Contact Number *</label>
-                                                        <input type="tel" id="whatsAppContact" name="whatsAppContact" class="form-control" required placeholder="Enter WhatsApp Contact of the user">
+                                                        <input type="tel" id="whatsAppContact" name="whatsAppContact" class="form-control" required placeholder="Enter WhatsApp Contact of the user" data-toggle="input-mask" data-mask-format="(+00)-000-0000000">
                                                         <div class="valid-feedback">Looks good!</div>
                                                         <div class="invalid-feedback">Please fill this field.</div>
                                                     </div>
@@ -392,12 +394,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                                                         <div class="invalid-feedback">Please select a status.</div>
                                                     </div>
                                                 </div>
-                                                <div class="col-lg-6">
+                                                <!-- <div class="col-lg-6">
                                                     <div class="mb-2">
                                                         <label for="userProfilePic" class="form-label">Profile Picture *</label>
-                                                        <input type="file" id="userProfilePic" name="userProfilePic" class="form-control" onchange="validateImage(this)" required>
+                                                        <input type="file" id="userProfilePic" name="userProfilePic" class="form-control" accept="image/*" onchange="validateImage(this)" required>
+                                                        <img id="profilePicPreview" src="<?php // echo htmlspecialchars($user['profile_pic_path']); 
+                                                                                            ?>" alt="Profile Picture" class="img-thumbnail mt-2" style="max-width: 150px;">
                                                         <div class="valid-feedback">Looks good!</div>
-                                                        <div class="invalid-feedback" id="imageError">Please fill this field.</div>
+                                                        <div class="invalid-feedback" id="imageError">Please Upload a Profile Picture. It must be 500x500 pixels. </div>
+                                                    </div>
+                                                </div> -->
+                                                <div class="col-lg-6">
+                                                    <div class="mb-3">
+                                                        <label for="userProfilePic" class="form-label">Profile Picture</label>
+                                                        <input type="file" id="userProfilePic" name="userProfilePic" class="form-control" onchange="validateImage(this)" required>
+                                                        <img id="profilePicPreview" src="<?php
+                                                                                            echo htmlspecialchars($user['profile_pic_path']);
+                                                                                            ?>"
+                                                            alt="Profile Picture" class="img-thumbnail mt-2" style="max-width: 150px;">
+                                                        <div class="valid-feedback">Looks good!</div>
+                                                        <div class="invalid-feedback" id="imageError">Please Upload a Profile Picture. It must be 500x500 pixels. </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -494,7 +510,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                                                             echo "<a href='edit-user.php?id=" . urlencode($row['id']) . "' class='btn btn-warning'><i class='ri-pencil-line'></i></a>";
                                                             echo "  ";
                                                             // Delete button
-                                                            echo "<a href='delete-role.php?id=" . urlencode($row['id']) . "' class='btn btn-danger' onclick='return confirmDelete();' ><i class='ri-delete-bin-line'></i></a>";
+                                                            echo "<a href='delete-user.php?id=" . urlencode($row['id']) . "' class='btn btn-danger' onclick='return confirmDelete();' ><i class='ri-delete-bin-line'></i></a>";
                                                             echo "</td>";
                                                             echo "</tr>";
                                                         }
@@ -538,7 +554,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
     <script>
         function confirmDelete() {
             // Show a confirmation dialog
-            var result = confirm("Are you sure you want to delete this role?");
+            var result = confirm("Are you sure you want to delete this user?");
 
             // If the user clicks "OK", return true to allow the default action (redirect)
             if (result) {
@@ -550,6 +566,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
         }
     </script>
     <script>
+        function displayImage(input) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('profilePicPreview').src = e.target.result;
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
         function validateImage(input) {
             const file = input.files[0];
             if (file) {
@@ -561,11 +587,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                     if (width !== 500 || height !== 500) {
                         errorElement.textContent = 'Profile picture must be 500x500 pixels. Current dimensions are ' + width + 'x' + height + '.';
                         input.value = ''; // Clear the file input
+                        document.getElementById('profilePicPreview').src = ''; // Clear the preview
                     } else {
                         errorElement.textContent = ''; // Clear any previous error message
+                        displayImage(input);
                     }
                 };
                 img.src = URL.createObjectURL(file);
+                // Display the image regardless of validation
             }
         }
     </script>
@@ -637,7 +666,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
             });
         });
     </script>
-
 
 </body>
 
