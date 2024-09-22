@@ -461,9 +461,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                                                 <?php
                                                 try {
                                                     // Start transaction if needed
-                                                    mysqli_begin_transaction($conn);
+                                                    $conn->begin_transaction();
 
-                                                    // Define the query to fetch roles with the user who created them
+                                                    // Define the query to fetch roles with the user who created and updated them
                                                     $query = "SELECT u.*, 
                                                                     r.role_name, 
                                                                     uc.username AS created_by_username, 
@@ -471,66 +471,79 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                                                                 FROM users u
                                                                 LEFT JOIN roles r ON u.role_id = r.id
                                                                 LEFT JOIN users uc ON u.created_by = uc.id
-                                                                LEFT JOIN users uu ON u.updated_by = uu.id;
-                                                                ";
+                                                                LEFT JOIN users uu ON u.updated_by = uu.id";
 
-                                                    // Execute the query
-                                                    $result = mysqli_query($conn, $query);
+                                                    // Prepare the statement
+                                                    if ($stmt = $conn->prepare($query)) {
 
-                                                    // Check for query execution errors
-                                                    if (!$result) {
-                                                        throw new Exception("Error executing query: " . mysqli_error($conn));
-                                                    }
+                                                        // Execute the statement
+                                                        $stmt->execute();
 
-                                                    // If the query is successful, loop through the results
-                                                    if (mysqli_num_rows($result) > 0) {
-                                                        while ($row = mysqli_fetch_assoc($result)) {
-                                                            echo "<tr>";
-                                                            echo "<td>" . htmlspecialchars($row['id']) . "</td>";
-                                                            echo "<td>" . htmlspecialchars($row['first_name']) . "</td>";
-                                                            echo "<td>" . htmlspecialchars($row['last_name']) . "</td>";
-                                                            echo "<td>" . htmlspecialchars($row['cnic']) . "</td>";
-                                                            echo "<td>" . htmlspecialchars($row['dob']) . "</td>";
-                                                            echo "<td>" . htmlspecialchars($row['email']) . "</td>";
-                                                            echo "<td>" . htmlspecialchars($row['username']) . "</td>";
-                                                            echo "<td>" . htmlspecialchars($row['contact_number']) . "</td>";
-                                                            echo "<td>" . htmlspecialchars($row['whatsapp_contact']) . "</td>";
-                                                            echo "<td>" . htmlspecialchars($row['address']) . "</td>";
-                                                            echo "<td>" . htmlspecialchars($row['profile_pic_path']) . "</td>";
-                                                            echo "<td>" . htmlspecialchars($row['role_name']) . "</td>";
+                                                        // Get the result set
+                                                        $result = $stmt->get_result();
 
-                                                            // Convert status to Active/Inactive
-                                                            $statusText = $row['is_active'] == 1 ? 'Active' : 'Not Active';
-                                                            echo "<td>" . htmlspecialchars($statusText) . "</td>";
+                                                        // Check if rows were found
+                                                        if ($result->num_rows > 0) {
+                                                            // Loop through the results and display them
+                                                            while ($row = $result->fetch_assoc()) {
+                                                                echo "<tr>";
+                                                                echo "<td>" . htmlspecialchars($row['id']) . "</td>";
+                                                                echo "<td>" . htmlspecialchars($row['first_name']) . "</td>";
+                                                                echo "<td>" . htmlspecialchars($row['last_name']) . "</td>";
+                                                                echo "<td>" . htmlspecialchars($row['cnic']) . "</td>";
+                                                                echo "<td>" . htmlspecialchars($row['dob']) . "</td>";
+                                                                echo "<td>" . htmlspecialchars($row['email']) . "</td>";
+                                                                echo "<td>" . htmlspecialchars($row['username']) . "</td>";
+                                                                echo "<td>" . htmlspecialchars($row['contact_number']) . "</td>";
+                                                                echo "<td>" . htmlspecialchars($row['whatsapp_contact']) . "</td>";
+                                                                echo "<td>" . htmlspecialchars($row['address']) . "</td>";
+                                                                echo "<td><img src='" . htmlspecialchars($row['profile_pic_path']) . "' alt='user-image' width='32' class='img-fluid avatar-sm rounded'></td>";
+                                                                echo "<td>" . htmlspecialchars($row['role_name']) . "</td>";
 
-                                                            echo "<td>" . htmlspecialchars($row['created_by']) . "</td>";
-                                                            echo "<td>" . htmlspecialchars(date('d-M-Y', strtotime($row['created_at']))) . "</td>";
-                                                            echo "<td>";
-                                                            // Edit button
-                                                            echo "<a href='edit-user.php?id=" . urlencode($row['id']) . "' class='btn btn-warning'><i class='ri-pencil-line'></i></a>";
-                                                            echo "  ";
-                                                            // Delete button
-                                                            echo "<a href='delete-user.php?id=" . urlencode($row['id']) . "' class='btn btn-danger' onclick='return confirmDelete();' ><i class='ri-delete-bin-line'></i></a>";
-                                                            echo "</td>";
-                                                            echo "</tr>";
+                                                                // Convert status to Active/Inactive
+                                                                $statusText = $row['is_active'] == 1 ? 'Active' : 'Not Active';
+                                                                echo "<td>" . htmlspecialchars($statusText) . "</td>";
+
+                                                                // Display the 'created by' username
+                                                                echo "<td>" . htmlspecialchars($row['created_by_username']) . "</td>";
+
+                                                                // Display the 'created at' date
+                                                                echo "<td>" . htmlspecialchars(date('d-M-Y', strtotime($row['created_at']))) . "</td>";
+
+                                                                // Edit button
+                                                                echo "<td>";
+                                                                echo "<a href='edit-user.php?id=" . urlencode($row['id']) . "' class='btn btn-warning'><i class='ri-pencil-line'></i></a>";
+                                                                echo "  ";
+                                                                // Delete button with confirmation
+                                                                echo "<a href='delete-user.php?id=" . urlencode($row['id']) . "' class='btn btn-danger' onclick='return confirmDelete();' ><i class='ri-delete-bin-line'></i></a>";
+                                                                echo "</td>";
+
+                                                                echo "</tr>";
+                                                            }
+                                                        } else {
+                                                            echo "<tr><td colspan='6'>No users found</td></tr>";
                                                         }
+
+                                                        // Commit the transaction (optional if you're modifying data)
+                                                        $conn->commit();
                                                     } else {
-                                                        echo "<tr><td colspan='6'>No roles found</td></tr>";
+                                                        throw new Exception("Error preparing query: " . $conn->error);
                                                     }
 
-                                                    // Commit transaction (optional if you're modifying data)
-                                                    mysqli_commit($conn);
+                                                    // Close the statement
+                                                    $stmt->close();
                                                 } catch (Exception $e) {
                                                     // Rollback in case of error
-                                                    mysqli_rollback($conn);
+                                                    $conn->rollback();
 
                                                     // Display or log the error
                                                     echo "<tr><td colspan='6'>Error: " . $e->getMessage() . "</td></tr>";
                                                 } finally {
                                                     // Close the connection
-                                                    mysqli_close($conn);
+                                                    $conn->close();
                                                 }
                                                 ?>
+
 
                                             </tbody>
                                         </table>
