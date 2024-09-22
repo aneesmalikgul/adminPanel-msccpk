@@ -51,10 +51,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveUserData'])) {
     $userAddress = $conn->real_escape_string($_POST['userAddress']);
     $userRole = $conn->real_escape_string($_POST['userRole']);
     $userStatus = $conn->real_escape_string($_POST['userStatus']);
+    $userPassword = $conn->real_escape_string($_POST['userPassword']); // Add password field
 
     // Assuming the current user's ID is stored in the session
     $createdBy = $_SESSION['user_id']; // Adjust based on how you store user ID in session
     $createdAt = date('Y-m-d H:i:s'); // Current timestamp
+
+    $userFullName = $userFirstName . " " . $userLastName;
 
     // Image upload handling
     $imageError = '';
@@ -86,18 +89,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveUserData'])) {
 
     // Check for uniqueness
     if (empty($imageError)) {
-        // $checkQuery = "SELECT COUNT(*) FROM users WHERE email = ? OR username = ? OR cnic = ?";
-        // $stmt = $conn->prepare($checkQuery);
-        // $stmt->bind_param("ssi", $userEmail, $userName, $userCNIC);
-        // $stmt->execute();
-        // $stmt->bind_result($count);
-        // $stmt->fetch();
-        // $stmt->close();
-
-        // if ($count > 0) {
-        //     $_SESSION['message'][] = ["type" => "danger", "content" => "Email, Username, or CNIC already exists."];
-
-
         // Check if email, username, or CNIC already exists for another user
         if (checkUniqueField($conn, 'email', $userEmail)) {
             $_SESSION['message'][] = ["type" => "danger", "content" => "Email already exists for another user."];
@@ -106,22 +97,34 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveUserData'])) {
         } elseif (checkUniqueField($conn, 'cnic', $userCNIC)) {
             $_SESSION['message'][] = ["type" => "danger", "content" => "CNIC already exists for another user."];
         } else {
+            // Hash the user password
+            $hashedPassword = password_hash($userPassword, PASSWORD_DEFAULT);
+
             // Start a transaction
             $conn->begin_transaction();
 
             try {
-                // Prepare insert query
-                // Prepare insert query
-                $insertQuery = "INSERT INTO users (first_name, last_name, cnic, dob, email, username, contact_number, whatsapp_contact, address, role_id, is_active, profile_pic_path, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-                $stmt = $conn->prepare($insertQuery);
+                // Prepare insert query with password field
+                $insertQuery = "INSERT INTO users (first_name, last_name, cnic, dob, email, username, contact_number, whatsapp_contact, address, role_id, is_active, profile_pic_path, created_by, created_at, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-                // Adjust the binding parameters
-                $stmt->bind_param("ssssssisssssis", $userFirstName, $userLastName, $userCNIC, $userDOB, $userEmail, $userName, $contactNumber, $whatsAppContact, $userAddress, $userRole, $userStatus, $imagePath, $createdBy, $createdAt);
+                $stmt = $conn->prepare($insertQuery);
+                $stmt->bind_param("ssssssisssssiss", $userFirstName, $userLastName, $userCNIC, $userDOB, $userEmail, $userName, $contactNumber, $whatsAppContact, $userAddress, $userRole, $userStatus, $imagePath, $createdBy, $createdAt, $hashedPassword);
 
                 // Execute the query
                 if ($stmt->execute()) {
                     $conn->commit();
                     $_SESSION['message'][] = ["type" => "success", "content" => "User added successfully!"];
+
+                    $result = sendUserCreationEmail($userEmail, $userName, $userFullName, $userPassword);
+
+                    if ($result === true) {
+                        // echo 'Email sent successfully!';
+                        $_SESSION['message'][] = ["type" => "success", "content" => "Email sent to user successfully!"];
+                    } else {
+                        // echo $result; // Display error message if any
+                        $_SESSION['message'][] = ["type" => "danger", "content" => "Email could not be sent!"];
+                    }
+
                     header("Location: manage-users.php");
                     exit();
                 } else {
@@ -131,11 +134,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveUserData'])) {
                 $conn->rollback();
                 $_SESSION['message'][] = ["type" => "danger", "content" => $e->getMessage()];
             }
-            // finally {
-            //     if (isset($stmt) && $stmt) {
-            //         $stmt->close();
-            //     }
-            // }
         }
     } else {
         $_SESSION['message'][] = ["type" => "danger", "content" => $imageError];
@@ -156,6 +154,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
     $userAddress = $conn->real_escape_string($_POST['userAddress']);
     $userRole = $conn->real_escape_string($_POST['userRole']);
     $userStatus = $conn->real_escape_string($_POST['userStatus']);
+    $userPassword = $conn->real_escape_string($_POST['userPassword']); // Password field
 
     // Assuming the current user's ID is stored in the session
     $updatedBy = $_SESSION['user_id']; // Adjust based on how you store user ID in session
@@ -217,6 +216,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                     $paramTypes = "ssssssssssissi";
                 }
 
+                // Check if password is provided for update
+                if (!empty($userPassword)) {
+                    // Hash the password if provided
+                    $hashedPassword = password_hash($userPassword, PASSWORD_DEFAULT);
+                    $updateQuery .= ", password_hash=?";
+                    $queryParams[] = $hashedPassword;
+                    $paramTypes .= "s";
+                }
+
                 // Add where clause for user ID
                 $updateQuery .= " WHERE id = ?";
 
@@ -244,6 +252,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
         $_SESSION['message'][] = ["type" => "danger", "content" => $imageError];
     }
 }
+
 
 ?>
 
@@ -414,6 +423,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                                                             alt="Profile Picture" class="img-thumbnail mt-2" style="max-width: 150px;">
                                                         <div class="valid-feedback">Looks good!</div>
                                                         <div class="invalid-feedback" id="imageError">Please Upload a Profile Picture. It must be 500x500 pixels. </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="mb-2">
+                                                        <label for="password" class="form-label">User Password</label>
+                                                        <div class="input-group input-group-merge">
+                                                            <input type="password" id="password" class="form-control" name="userPassword" placeholder="Enter your password" required>
+                                                            <div class="input-group-text" data-password="false">
+                                                                <span class="password-eye"></span>
+                                                            </div>
+                                                            <div class="valid-feedback">Looks good!</div>
+                                                            <div class="invalid-feedback">Please enter user password. </div>
+                                                        </div>
+
                                                     </div>
                                                 </div>
                                             </div>

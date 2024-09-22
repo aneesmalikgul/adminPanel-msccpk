@@ -119,7 +119,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 </div>
 
                                 <div class="mb-2">
-                                    <a href="auth-recoverpw.php" class="text-muted float-end fs-12">Forgot your password?</a>
+                                    <a href="#" class="text-muted float-end fs-12">Forgot your password?</a>
                                     <label for="password" class="form-label">Password</label>
                                     <div class="input-group input-group-merge">
                                         <input type="password" id="password" class="form-control" name="password" placeholder="Enter your password">

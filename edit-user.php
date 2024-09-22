@@ -268,7 +268,20 @@ try {
                                                         </div>
                                                     </div>
                                                 </div>
+                                                <div class="col-lg-6">
+                                                    <div class="mb-2">
+                                                        <label for="password" class="form-label">User Password</label>
+                                                        <div class="input-group input-group-merge">
+                                                            <input type="password" id="password" class="form-control" name="userPassword" placeholder="Enter your password">
+                                                            <div class="input-group-text" data-password="false">
+                                                                <span class="password-eye"></span>
+                                                            </div>
+                                                            <div class="valid-feedback">Looks good!</div>
+                                                            <div class="invalid-feedback">Please enter user password. </div>
+                                                        </div>
 
+                                                    </div>
+                                                </div>
                                                 <div class="row mb-3">
                                                     <div class="col-lg-12 text-center">
                                                         <button type="submit" id="btnUpdateUserData" name="btnUpdateUserData" class="btn btn-primary">Update User Details</button>

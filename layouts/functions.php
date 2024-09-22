@@ -1,5 +1,13 @@
 <?php
 
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+// Load PHPMailer files
+require 'assets/vendor/PHPMailer/src/Exception.php';
+require 'assets/vendor/PHPMailer/src/PHPMailer.php';
+require 'assets/vendor/PHPMailer/src/SMTP.php';
+
 // include 'config.php';
 function get_home_url()
 {
@@ -203,5 +211,55 @@ function rowInfo($conn, $tableName, $columnName, $id)
         if (isset($stmt) && $stmt) {
             $stmt->close();
         }
+    }
+}
+
+
+
+function sendUserCreationEmail($userEmail, $userName, $userFullName, $userPassword)
+{
+    $mail = new PHPMailer(true);
+
+    try {
+        // Server settings
+        $mail->isSMTP();
+        $mail->Host       = 'mail.mscc.pk'; // SMTP host
+        $mail->SMTPAuth   = true;
+        $mail->Username   = 'admin@mscc.pk'; // SMTP username
+        $mail->Password   = 'VnmEN8gZt9zN'; // SMTP password
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS; // Encryption
+        $mail->Port       = 587; // SMTP port
+
+        // Recipients
+        $mail->setFrom('info@mscc.pk', 'Mohsin Shaheen Construction Company');
+        $mail->addAddress($userEmail, $userFullName); // Add recipient
+        $mail->addReplyTo('info@mscc.pk'); // Reply-to address
+
+        // Content
+        $mail->isHTML(true); // Set email format to HTML
+        $mail->Subject = 'Your Account Details for MSCC Dashboard';
+
+        // Email body content
+        $mail->Body = "
+            <h1>Hello, {$userFullName}</h1>
+            <p>Thank you for registering with Mohsin Shaheen Construction Company. Below are your account details:</p>
+            <ul>
+                <li><strong>Email:</strong> {$userEmail}</li>
+                <li><strong>Username:</strong> {$userName}</li>
+                <li><strong>Password:</strong> {$userPassword}</li>
+            </ul>
+            <p>You can log in to your account using the following link:</p>
+            <p><a href='https://dashboard.mscc.pk/'>Login to MSCC Dashboard</a></p>
+            <br>
+            <p>If you did not register for this account, please contact our support team immediately.</p>
+            <p>Best regards,<br>MSCC Team</p>
+        ";
+
+        // Send the email
+        $mail->send();
+        return true; // Email sent successfully
+    } catch (Exception $e) {
+        // return "Message could not be sent. Mailer Error: {$mail->ErrorInfo}";
+        return "Message could not be sent. ";
     }
 }
