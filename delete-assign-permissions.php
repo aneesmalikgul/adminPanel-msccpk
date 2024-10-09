@@ -8,7 +8,7 @@ if (!hasPermission('manage_user') || !hasPermission('manage_assign_permission') 
     exit();
 }
 
-// Check if an ID is provided in the URL
+// Check if an ID is provided in the URL 
 if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     $permissionId = $_GET['id'];
 
