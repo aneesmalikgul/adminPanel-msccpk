@@ -4,6 +4,11 @@ include 'layouts/config.php';
 include 'layouts/functions.php';
 include 'layouts/main.php';
 
+if (!hasPermission('manage_user') || !hasPermission('manage_assign_permission') || !hasPermission('create_assign_permission')) {
+    header('Location: index.php');
+    exit();
+}
+
 // Fetch roles and permissions for dropdowns
 $roles = [];
 $permissions = [];

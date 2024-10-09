@@ -4,6 +4,11 @@ include 'layouts/config.php';
 include 'layouts/functions.php';
 include 'layouts/main.php';
 
+if (!hasPermission('manage_user') || !hasPermission('manage_assign_permission') || !hasPermission('edit_assign_permission')) {
+    header('Location: index.php');
+    exit();
+}
+
 $rolePermissionId = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $rolePermission = null;
 

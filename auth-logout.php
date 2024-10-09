@@ -3,7 +3,7 @@
 <?php include 'layouts/main.php'; ?>
 
 <head>
-    <title>Logout | CakePalace Orders</title>
+    <title>Logout | Mohsin Shaheen Construction Company</title>
     <?php include 'layouts/title-meta.php'; ?>
 
     <?php include 'layouts/head-css.php'; ?>

@@ -4,6 +4,11 @@ include 'layouts/config.php';
 include 'layouts/functions.php';
 include 'layouts/main.php';
 
+if (!hasPermission('manage_user') || !hasPermission('manage_role') || !hasPermission('edit_role')) {
+    header('Location: manage-role.php');
+    exit();
+}
+
 // Check if the role ID is provided
 if (!isset($_GET['id']) || empty($_GET['id'])) {
     $_SESSION['message'][] = ["type" => "error", "content" => "No role ID provided."];

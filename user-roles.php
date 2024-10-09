@@ -4,6 +4,11 @@ include 'layouts/config.php';
 include 'layouts/functions.php';
 include 'layouts/main.php';
 
+if (!hasPermission('manage_user') || !hasPermission('manage_role') || !hasPermission('create_role')) {
+    header('Location: index.php');
+    exit();
+}
+
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveRole'])) {
     // Collect form data and sanitize inputs
     $roleName = strtolower(trim($_POST['roleName']));

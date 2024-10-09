@@ -4,6 +4,11 @@ include 'layouts/config.php';
 include 'layouts/functions.php';
 include 'layouts/main.php';
 
+if (!hasPermission('manage_user') || !hasPermission('edit_user')) {
+    header('Location: manage-users.php');
+    exit; // Make sure to call exit after the header to stop further script execution
+}
+
 // Check if the role ID is provided
 if (!isset($_GET['id']) || empty($_GET['id'])) {
     $_SESSION['message'][] = ["type" => "error", "content" => "Please Provide User ID"];

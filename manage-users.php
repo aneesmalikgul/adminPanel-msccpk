@@ -4,6 +4,11 @@ include 'layouts/config.php';
 include 'layouts/functions.php';
 include 'layouts/main.php';
 
+if (!hasPermission('manage_user') || !hasPermission('create_user')) {
+    header('Location: index.php');
+    exit; // Make sure to call exit after the header to stop further script execution
+}
+
 $roles = [];
 try {
     $conn->begin_transaction();
@@ -51,7 +56,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveUserData'])) {
     $userAddress = $conn->real_escape_string($_POST['userAddress']);
     $userRole = $conn->real_escape_string($_POST['userRole']);
     $userStatus = $conn->real_escape_string($_POST['userStatus']);
-    $userPassword = $conn->real_escape_string($_POST['userPassword']); // Add password field
+    $userPassword = $conn->real_escape_string($_POST['password']); // Add password field
 
     // Assuming the current user's ID is stored in the session
     $createdBy = $_SESSION['user_id']; // Adjust based on how you store user ID in session
@@ -154,7 +159,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
     $userAddress = $conn->real_escape_string($_POST['userAddress']);
     $userRole = $conn->real_escape_string($_POST['userRole']);
     $userStatus = $conn->real_escape_string($_POST['userStatus']);
-    $userPassword = $conn->real_escape_string($_POST['userPassword']); // Password field
+    $userPassword = $conn->real_escape_string($_POST['password']); // Password field
 
     // Assuming the current user's ID is stored in the session
     $updatedBy = $_SESSION['user_id']; // Adjust based on how you store user ID in session
@@ -425,7 +430,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                                                         <div class="invalid-feedback" id="imageError">Please Upload a Profile Picture. It must be 500x500 pixels. </div>
                                                     </div>
                                                 </div>
-                                                <div class="col-lg-6">
+                                                <!-- <div class="col-lg-6">
                                                     <div class="mb-2">
                                                         <label for="password" class="form-label">User Password</label>
                                                         <div class="input-group input-group-merge">
@@ -438,7 +443,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                                                         </div>
 
                                                     </div>
+                                                </div> -->
+                                                <div class="col-lg-6">
+                                                    <div class="mb-2">
+                                                        <label for="password" class="form-label">User Password</label>
+                                                        <div class="input-group input-group-merge">
+                                                            <input type="password" id="password" class="form-control" name="password" placeholder="Enter your password" required>
+                                                            <div class="input-group-text" id="togglePassword" style="cursor: pointer;">
+                                                                <i class="ri-eye-line"></i> <!-- Initial eye icon for password visibility -->
+                                                            </div>
+                                                            <div class="input-group-text" id="generatePasswordBtn" style="cursor: pointer;">
+                                                                <i class="ri-refresh-line"></i> <!-- Remixicon refresh icon for generating password -->
+                                                            </div>
+                                                            <div class="valid-feedback">Looks good!</div>
+                                                            <div class="invalid-feedback">Please enter user password.</div>
+                                                        </div>
+                                                    </div>
                                                 </div>
+
+
                                             </div>
                                             <div class="row mb-3">
                                                 <div class="col-lg-12 text-center">
@@ -702,6 +725,42 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
             });
         });
     </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const togglePassword = document.querySelector('#togglePassword');
+            const passwordInput = document.querySelector('#password');
+            const generatePasswordBtn = document.querySelector('#generatePasswordBtn');
+
+            // Toggle password visibility
+            togglePassword.addEventListener('click', function() {
+                // Toggle the password field's type between 'password' and 'text'
+                const isPasswordVisible = passwordInput.getAttribute('type') === 'password';
+                passwordInput.setAttribute('type', isPasswordVisible ? 'text' : 'password');
+
+                // Toggle between eye icons
+                const icon = togglePassword.querySelector('i');
+                icon.classList.toggle('ri-eye-line');
+                icon.classList.toggle('ri-eye-off-line');
+            });
+
+            // Generate random password
+            generatePasswordBtn.addEventListener('click', function() {
+                const randomPassword = generateRandomPassword(12); // Generate a 12-character password
+                passwordInput.value = randomPassword;
+            });
+
+            // Function to generate a random password
+            function generateRandomPassword(length) {
+                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%&*!';
+                let password = '';
+                for (let i = 0; i < length; i++) {
+                    password += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                return password;
+            }
+        });
+    </script>
+
 
 </body>
 

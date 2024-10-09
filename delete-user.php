@@ -4,6 +4,11 @@ include 'layouts/session.php';
 include 'layouts/config.php'; // Database connection
 include 'layouts/functions.php';
 
+if (!hasPermission('manage_user') || !hasPermission('delete_user')) {
+    header('Location: manage-users.php');
+    exit; // Make sure to call exit after the header to stop further script execution
+}
+
 // Check if the user ID is provided via GET
 if (!isset($_GET['id']) || empty($_GET['id'])) {
     $_SESSION['message'][] = ["type" => "error", "content" => "No User Found."];

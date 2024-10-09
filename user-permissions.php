@@ -3,7 +3,14 @@ include 'layouts/session.php';
 include 'layouts/config.php';
 include 'layouts/functions.php';
 include 'layouts/main.php';
+
+if (!hasPermission('manage_user') || !hasPermission('manage_permission') || !hasPermission('view_permission')) {
+    header('Location: index.php');
+    exit();
+}
+
 ?>
+
 
 <head>
     <title>User Permissions | Mohsin Shaheen Construction Company</title>

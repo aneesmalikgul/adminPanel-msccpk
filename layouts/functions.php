@@ -26,6 +26,7 @@ function logMessage($message)
 {
     error_log($message, 3, 'debug.log'); // Change 'debug.log' to the desired log file path
 }
+
 function hasPermission($permission_name)
 {
     global $conn;
