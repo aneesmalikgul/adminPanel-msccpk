@@ -152,6 +152,25 @@
           </ul>
         </div>
       </li>
+      <li class="side-nav-title">Manage Attendance</li>
+
+      <li class="side-nav-item">
+        <a data-bs-toggle="collapse" href="#sidebarProjects" aria-expanded="false" aria-controls="sidebarProjects" class="side-nav-link">
+          <i class="ri-file-text-line"></i>
+          <span> Manage Attendance </span>
+          <span class="menu-arrow"></span>
+        </a>
+        <div class="collapse" id="sidebarProjects">
+          <ul class="side-nav-second-level">
+            <li>
+              <a href="mark-attendance.php">Mark Attendance</a>
+            </li>
+            <!-- <li>
+              <a href="all-Projects.php">All Blog</a>
+            </li> -->
+          </ul>
+        </div>
+      </li>
       <li class="side-nav-title">User Management</li>
 
       <li class="side-nav-item">
