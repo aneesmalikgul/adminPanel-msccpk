@@ -152,12 +152,12 @@
           </ul>
         </div>
       </li>
-      <li class="side-nav-title">Manage Attendance</li>
+      <li class="side-nav-title">Attendance Management</li>
 
       <li class="side-nav-item">
         <a data-bs-toggle="collapse" href="#sidebarProjects" aria-expanded="false" aria-controls="sidebarProjects" class="side-nav-link">
           <i class="ri-file-text-line"></i>
-          <span> Manage Attendance </span>
+          <span>Attendance </span>
           <span class="menu-arrow"></span>
         </a>
         <div class="collapse" id="sidebarProjects">
@@ -171,6 +171,28 @@
           </ul>
         </div>
       </li>
+
+      <li class="side-nav-title">Tasks Management</li>
+
+      <li class="side-nav-item">
+        <a data-bs-toggle="collapse" href="#sidebarTaskManagement" aria-expanded="false" aria-controls="sidebarTaskManagement" class="side-nav-link">
+          <i class="ri-file-text-line"></i>
+          <span> Task Management </span>
+          <span class="menu-arrow"></span>
+        </a>
+        <div class="collapse" id="sidebarTaskManagement">
+          <ul class="side-nav-second-level">
+            <li>
+              <a href="manage-tasks.php">Tasks</a>
+            </li>
+            <!-- <li>
+              <a href="all-Projects.php">All Blog</a>
+            </li> -->
+          </ul>
+        </div>
+      </li>
+
+
       <li class="side-nav-title">User Management</li>
 
       <li class="side-nav-item">
