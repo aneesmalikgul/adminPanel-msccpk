@@ -4,6 +4,10 @@ include 'layouts/main.php';
 include 'layouts/config.php';
 include 'layouts/functions.php';
 
+if (!hasPermission('manage_blog') || !hasPermission('edit_blog')) {
+    header('location: index.php');
+    exit();
+}
 
 try {
     // Check if ID is provided

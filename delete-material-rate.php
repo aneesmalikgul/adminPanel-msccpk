@@ -3,6 +3,11 @@ include 'layouts/session.php';
 include 'layouts/config.php'; // Make sure you include your database configuration file
 include 'layouts/functions.php';
 
+if (!hasPermission('delete_material_rate') || !hasPermission('manage_material_rate')) {
+    header('location: index.php');
+}
+
+
 // Check if ID is set and numeric
 if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     $materialId = $_GET['id'];

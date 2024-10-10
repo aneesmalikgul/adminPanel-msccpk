@@ -4,6 +4,10 @@ include 'layouts/main.php';
 include 'layouts/config.php';
 include 'layouts/functions.php';
 
+if (!hasPermission('edit_material_rate') || !hasPermission('manage_material_rate')) {
+    header('location: index.php');
+}
+
 try {
     // Check if ID is provided
     if (isset($_GET['id']) && !empty($_GET['id'])) {

@@ -3,8 +3,12 @@ include 'layouts/session.php';
 include 'layouts/main.php';
 include 'layouts/config.php';
 include 'layouts/functions.php';
-?>
 
+if (!hasPermission('manage_blog') || !hasPermission('create_blog')) {
+    header('location: index.php');
+    exit();
+}
+?>
 
 <!DOCTYPE html>
 <html lang="en">

@@ -3,6 +3,12 @@ include 'layouts/session.php';
 include 'layouts/main.php';
 include 'layouts/config.php';
 include 'layouts/functions.php';
+
+if (!hasPermission('view_material_rate') || !hasPermission('manage_material_rate')) {
+    header('location: index.php');
+    exit();
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -241,7 +247,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["btnUpdateMaterialData"
                                                     <th>Material Image</th>
                                                     <th>Created By</th>
                                                     <th>Created At</th>
-                                                    <th>Actions</th>
+                                                    <?php if (hasPermission('edit_material_rate') || hasPermission('delete_material_rate')): ?>
+                                                        <th>Actions</th>
+                                                    <?php endif; ?>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -266,14 +274,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["btnUpdateMaterialData"
                                                         echo "</td>";
                                                         echo "<td>" . htmlspecialchars($row['created_by']) . "</td>";
                                                         echo "<td>" . htmlspecialchars(date('d-M-Y', strtotime($row['created_at']))) . "</td>";
-                                                        echo "<td>";
-                                                        // Edit button
-                                                        echo "<a href='edit-material-rates.php?id=" . urlencode($row['id']) . "' class='btn btn-warning'><i class='ri-pencil-line'></i></a>";
-                                                        echo "  ";
-                                                        // Delete button
-                                                        echo "<a href='delete-material-rate.php?id=" . urlencode($row['id']) . "' class='btn btn-danger' onclick='return confirmDelete()'><i class='ri-delete-bin-line'></i></a>";
-
-                                                        echo "</td>";
+                                                        if (hasPermission('edit_material_rate') || hasPermission('delete_material_rate')) {
+                                                            echo "<td>";
+                                                            if (hasPermission('edit_material_rate')) {
+                                                                // Edit button
+                                                                echo "<a href='edit-material-rates.php?id=" . urlencode($row['id']) . "' class='btn btn-warning'><i class='ri-pencil-line'></i></a>";
+                                                                echo "  ";
+                                                            }
+                                                            if (hasPermission('delete_material_rate')) {
+                                                                // Delete button
+                                                                echo "<a href='delete-material-rate.php?id=" . urlencode($row['id']) . "' class='btn btn-danger' onclick='return confirmDelete()'><i class='ri-delete-bin-line'></i></a>";
+                                                            }
+                                                            echo "</td>";
+                                                        }
                                                         echo "</tr>";
                                                     }
                                                 } else {

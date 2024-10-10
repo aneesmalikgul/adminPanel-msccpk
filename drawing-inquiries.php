@@ -3,6 +3,13 @@
 <?php include 'layouts/config.php'; ?>
 <?php include 'layouts/functions.php'; ?>
 
+<?php
+if (!hasPermission('view_inquiry')) {
+    header('Location: index.php');
+    exit();
+}
+?>
+
 <head>
     <title>Drawing Inquiries | Mohsin Shaheen Construction Company</title>
     <?php include 'layouts/title-meta.php'; ?>

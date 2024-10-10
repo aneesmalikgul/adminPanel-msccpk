@@ -47,7 +47,7 @@
       <li class="side-nav-item">
         <a data-bs-toggle="collapse" href="#sidebarDashboards" aria-expanded="false" aria-controls="sidebarDashboards" class="side-nav-link">
           <i class="ri-home-4-line"></i>
-          <span class="badge bg-success float-end">2</span>
+          <!-- <span class="badge bg-success float-end">2</span> -->
           <span> Dashboards </span>
         </a>
         <div class="collapse" id="sidebarDashboards">
@@ -61,68 +61,76 @@
           </ul>
         </div>
       </li>
+      <?php if (hasPermission('view_inquiry')): ?>
+        <li class="side-nav-title">Inquiries</li>
+        <li class="side-nav-item">
+          <a data-bs-toggle="collapse" href="#sidebarIcons" aria-expanded="false" aria-controls="sidebarIcons" class="side-nav-link">
+            <i class="ri-shopping-basket-line"></i>
+            <span> Inquiries </span>
+            <span class="menu-arrow"></span>
+          </a>
+          <div class="collapse" id="sidebarIcons">
+            <ul class="side-nav-second-level">
+              <li>
+                <a href="drawing-inquiries.php">Drawing Inquiries</a>
+              </li>
+              <li>
+                <a href="qoute-inquiries.php">Qoute Inquiries</a>
+              </li>
+            </ul>
+          </div>
+        </li>
 
-      <li class="side-nav-title">Inquiries</li>
+      <?php endif; ?>
 
-      <li class="side-nav-item">
-        <a data-bs-toggle="collapse" href="#sidebarIcons" aria-expanded="false" aria-controls="sidebarIcons" class="side-nav-link">
-          <i class="ri-shopping-basket-line"></i>
-          <span> Inquiries </span>
-          <span class="menu-arrow"></span>
-        </a>
-        <div class="collapse" id="sidebarIcons">
-          <ul class="side-nav-second-level">
-            <li>
-              <a href="drawing-inquiries.php">Drawing Inquiries</a>
-            </li>
-            <li>
-              <a href="qoute-inquiries.php">Qoute Inquiries</a>
-            </li>
-          </ul>
-        </div>
-      </li>
+      <?php if (hasPermission('manage_material_rate')): ?>
+        <li class="side-nav-title">Rates</li>
+        <li class="side-nav-item">
+          <a data-bs-toggle="collapse" href="#sidebarRates" aria-expanded="false" aria-controls="sidebarRates" class="side-nav-link">
+            <i class=" ri-money-dollar-circle-line"></i>
+            <span> Material Rates </span>
+            <span class="menu-arrow"></span>
+          </a>
+          <div class="collapse" id="sidebarRates">
+            <ul class="side-nav-second-level">
+              <li>
+                <a href="material-rates.php">Materials & Rates</a>
+              </li>
+            </ul>
+          </div>
+        </li>
+      <?php endif; ?>
 
-      <li class="side-nav-title">Rates</li>
+      <?php if (hasPermission('manage_blog')): ?>
+        <li class="side-nav-title">Blogs</li>
 
-      <li class="side-nav-item">
-        <a data-bs-toggle="collapse" href="#sidebarRates" aria-expanded="false" aria-controls="sidebarRates" class="side-nav-link">
-          <i class=" ri-money-dollar-circle-line"></i>
-          <span> Material Rates </span>
-          <span class="menu-arrow"></span>
-        </a>
-        <div class="collapse" id="sidebarRates">
-          <ul class="side-nav-second-level">
-            <li>
-              <a href="material-rates.php">Materials & Rates</a>
-            </li>
-
-          </ul>
-        </div>
-      </li>
-
-      <li class="side-nav-title">Blogs</li>
-
-      <li class="side-nav-item">
-        <a data-bs-toggle="collapse" href="#sidebarBlogs" aria-expanded="false" aria-controls="sidebarBlogs" class="side-nav-link">
-          <i class="ri-file-text-line"></i>
-          <span> Blog Posts </span>
-          <span class="menu-arrow"></span>
-        </a>
-        <div class="collapse" id="sidebarBlogs">
-          <ul class="side-nav-second-level">
-            <li>
-              <a href="blog-posts.php">Blog</a>
-            </li>
-            <li>
-              <a href="all-blogs.php">All Blog</a>
-            </li>
-
-            <li>
-              <a href="blog-comments.php">Comments</a>
-            </li>
-          </ul>
-        </div>
-      </li>
+        <li class="side-nav-item">
+          <a data-bs-toggle="collapse" href="#sidebarBlogs" aria-expanded="false" aria-controls="sidebarBlogs" class="side-nav-link">
+            <i class="ri-file-text-line"></i>
+            <span> Blog Posts </span>
+            <span class="menu-arrow"></span>
+          </a>
+          <div class="collapse" id="sidebarBlogs">
+            <ul class="side-nav-second-level">
+              <?php if (hasPermission('create_blog')): ?>
+                <li>
+                  <a href="blog-posts.php">Blog</a>
+                </li>
+              <?php endif; ?>
+              <?php if (hasPermission('view_blog')): ?>
+                <li>
+                  <a href="all-blogs.php">All Blog</a>
+                </li>
+              <?php endif; ?>
+              <?php if (hasPermission('manage_comments')): ?>
+                <li>
+                  <a href="blog-comments.php">Comments</a>
+                </li>
+              <?php endif; ?>
+            </ul>
+          </div>
+        </li>
+      <?php endif; ?>
 
 
       <li class="side-nav-title">Projects</li>

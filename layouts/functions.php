@@ -35,7 +35,7 @@ function hasPermission($permission_name)
     // Prepare the SQL statement
     $stmt = $conn->prepare("SELECT COUNT(*) FROM role_permissions rp
                             INNER JOIN permissions p ON rp.permission_id = p.id
-                            WHERE rp.role_id = ? AND p.permission_name = ?");
+                            WHERE rp.role_id = ? AND p.permission_name = ? AND rp.status = 1");
 
     // Bind parameters and execute the statement
     $stmt->bind_param("is", $role_id, $permission_name);
