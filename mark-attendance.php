@@ -279,11 +279,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && (isset($_POST['btnCheckIn']) || isse
 
                                                         // Get the result set
                                                         $result = $stmt->get_result();
-
+                                                        $id = 0;
                                                         // Check if rows were found
                                                         if ($result->num_rows > 0) {
                                                             // Loop through the results and display them
                                                             while ($row = $result->fetch_assoc()) {
+
                                                                 $id += 1;
                                                                 echo "<tr>";
                                                                 echo "<td>" . $id . "</td>";
