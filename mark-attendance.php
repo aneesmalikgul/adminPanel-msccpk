@@ -43,221 +43,109 @@ try {
     $_SESSION['message'] = ["type" => "error", "content" => $e->getMessage()];
 }
 
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveUserData'])) {
-    // Collect and sanitize inputs
-    $userFirstName = $conn->real_escape_string($_POST['userFirstName']);
-    $userLastName = $conn->real_escape_string($_POST['userLastName']);
-    $userCNIC = $conn->real_escape_string($_POST['userCNIC']);
-    $userDOB = $conn->real_escape_string($_POST['userDOB']);
-    $userEmail = $conn->real_escape_string($_POST['userEmail']);
-    $userName = $conn->real_escape_string($_POST['userName']);
-    $contactNumber = $conn->real_escape_string($_POST['contactNumber']);
-    $whatsAppContact = $conn->real_escape_string($_POST['whatsAppContact']);
-    $userAddress = $conn->real_escape_string($_POST['userAddress']);
-    $userRole = $conn->real_escape_string($_POST['userRole']);
-    $userStatus = $conn->real_escape_string($_POST['userStatus']);
-    $userPassword = $conn->real_escape_string($_POST['password']); // Add password field
 
-    // Assuming the current user's ID is stored in the session
-    $createdBy = $_SESSION['user_id']; // Adjust based on how you store user ID in session
+// Assuming you have already established a database connection
+
+if ($_SERVER["REQUEST_METHOD"] == "POST" && (isset($_POST['btnCheckIn']) || isset($_POST['btnCheckOut']))) {
+    // Fetch username from session
+    if (isset($_SESSION['username'])) {
+        $username = $_SESSION['username']; // Username from session
+    } else {
+        $_SESSION['message'][] = ["type" => "danger", "content" => "User session has expired. Please log in again."];
+        header("Location: login.php"); // Redirect to login page
+        exit();
+    }
+
+    // Get user ID based on username from users table
+    $userQuery = "SELECT id FROM users WHERE username = ?";
+    $stmt = $conn->prepare($userQuery);
+    $stmt->bind_param("s", $username);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result->num_rows === 1) {
+        $user = $result->fetch_assoc();
+        $userId = $user['id']; // User ID fetched from the database
+    } else {
+        $_SESSION['message'][] = ["type" => "danger", "content" => "User not found."];
+        header("Location: login.php");
+        exit();
+    }
+
+    // Collect and sanitize inputs for date and time
+    $date = $conn->real_escape_string($_POST['date']); // Date from form
+    $time = $conn->real_escape_string($_POST['time']); // Time from form
+    $currentDate = date('Y-m-d'); // Current date for checking today's records
+
+    // Common data
+    $createdBy = $userId; // Assuming the user is creating their own attendance
+    $attendanceStatus = 'present'; // Default attendance status
     $createdAt = date('Y-m-d H:i:s'); // Current timestamp
-
-    $userFullName = $userFirstName . " " . $userLastName;
-
-    // Image upload handling
-    $imageError = '';
-    $userProfilePic = $_FILES['userProfilePic'];
-    if ($userProfilePic['error'] === UPLOAD_ERR_OK) {
-        // Validate image size
-        list($width, $height) = getimagesize($userProfilePic['tmp_name']);
-        if ($width !== 500 || $height !== 500) {
-            $imageError = "Image must be 500x500 pixels.";
-        }
-
-        // Create the uploads directory if it doesn't exist
-        $uploadDir = 'assets/uploads/user-image/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
-
-        // Create a unique name for the image
-        $imageName = "{$userCNIC}-{$userName}-" . date('YmdHis') . '.' . pathinfo($userProfilePic['name'], PATHINFO_EXTENSION);
-        $imagePath = $uploadDir . $imageName;
-
-        // Move the uploaded file
-        if (!move_uploaded_file($userProfilePic['tmp_name'], $imagePath)) {
-            $imageError = "Failed to move uploaded file.";
-        }
-    } else {
-        $imageError = "Failed to upload image.";
-    }
-
-    // Check for uniqueness
-    if (empty($imageError)) {
-        // Check if email, username, or CNIC already exists for another user
-        if (checkUniqueField($conn, 'email', $userEmail)) {
-            $_SESSION['message'][] = ["type" => "danger", "content" => "Email already exists for another user."];
-        } elseif (checkUniqueField($conn, 'username', $userName)) {
-            $_SESSION['message'][] = ["type" => "danger", "content" => "Username already exists for another user."];
-        } elseif (checkUniqueField($conn, 'cnic', $userCNIC)) {
-            $_SESSION['message'][] = ["type" => "danger", "content" => "CNIC already exists for another user."];
-        } else {
-            // Hash the user password
-            $hashedPassword = password_hash($userPassword, PASSWORD_DEFAULT);
-
-            // Start a transaction
-            $conn->begin_transaction();
-
-            try {
-                // Prepare insert query with password field
-                $insertQuery = "INSERT INTO users (first_name, last_name, cnic, dob, email, username, contact_number, whatsapp_contact, address, role_id, is_active, profile_pic_path, created_by, created_at, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
-                $stmt = $conn->prepare($insertQuery);
-                $stmt->bind_param("ssssssisssssiss", $userFirstName, $userLastName, $userCNIC, $userDOB, $userEmail, $userName, $contactNumber, $whatsAppContact, $userAddress, $userRole, $userStatus, $imagePath, $createdBy, $createdAt, $hashedPassword);
-
-                // Execute the query
-                if ($stmt->execute()) {
-                    $conn->commit();
-                    $_SESSION['message'][] = ["type" => "success", "content" => "User added successfully!"];
-
-                    $result = sendUserCreationEmail($userEmail, $userName, $userFullName, $userPassword);
-
-                    if ($result === true) {
-                        // echo 'Email sent successfully!';
-                        $_SESSION['message'][] = ["type" => "success", "content" => "Email sent to user successfully!"];
-                    } else {
-                        // echo $result; // Display error message if any
-                        $_SESSION['message'][] = ["type" => "danger", "content" => "Email could not be sent!"];
-                    }
-
-                    header("Location: manage-users.php");
-                    exit();
-                } else {
-                    throw new Exception("Failed to insert user: " . $stmt->error);
-                }
-            } catch (Exception $e) {
-                $conn->rollback();
-                $_SESSION['message'][] = ["type" => "danger", "content" => $e->getMessage()];
-            }
-        }
-    } else {
-        $_SESSION['message'][] = ["type" => "danger", "content" => $imageError];
-    }
-}
-
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) {
-    // Collect and sanitize inputs
-    $userId = $conn->real_escape_string($_POST['userId']);
-    $userFirstName = $conn->real_escape_string($_POST['userFirstName']);
-    $userLastName = $conn->real_escape_string($_POST['userLastName']);
-    $userCNIC = $conn->real_escape_string($_POST['userCNIC']);
-    $userDOB = $conn->real_escape_string($_POST['userDOB']);
-    $userEmail = $conn->real_escape_string($_POST['userEmail']);
-    $userName = $conn->real_escape_string($_POST['userName']);
-    $contactNumber = $conn->real_escape_string($_POST['contactNumber']);
-    $whatsAppContact = $conn->real_escape_string($_POST['whatsAppContact']);
-    $userAddress = $conn->real_escape_string($_POST['userAddress']);
-    $userRole = $conn->real_escape_string($_POST['userRole']);
-    $userStatus = $conn->real_escape_string($_POST['userStatus']);
-    $userPassword = $conn->real_escape_string($_POST['password']); // Password field
-
-    // Assuming the current user's ID is stored in the session
-    $updatedBy = $_SESSION['user_id']; // Adjust based on how you store user ID in session
     $updatedAt = date('Y-m-d H:i:s'); // Current timestamp
 
-    // Image upload handling
-    $imageError = '';
-    $userProfilePic = $_FILES['userProfilePic'];
-    $imagePath = '';
+    // Start a transaction
+    $conn->begin_transaction();
 
-    if ($userProfilePic['error'] === UPLOAD_ERR_OK) {
-        // Validate image size
-        list($width, $height) = getimagesize($userProfilePic['tmp_name']);
-        if ($width !== 500 || $height !== 500) {
-            $imageError = "Image must be 500x500 pixels.";
-        }
+    try {
+        if (isset($_POST['btnCheckIn'])) {
+            // Check if the user has already checked in today
+            $checkQuery = "SELECT * FROM attendance WHERE user_id = ? AND attendance_date = ?";
+            $stmt = $conn->prepare($checkQuery);
+            $stmt->bind_param("is", $userId, $currentDate);
+            $stmt->execute();
+            $result = $stmt->get_result();
 
-        // Create the uploads directory if it doesn't exist
-        $uploadDir = 'assets/uploads/user-image/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
+            if ($result->num_rows == 0) {
+                // Insert a new check-in record
+                $insertQuery = "INSERT INTO attendance (user_id, attendance_date, check_in, attendance_status, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?)";
+                $stmt->prepare($insertQuery);
+                $stmt->bind_param("issssi", $userId, $date, $time, $attendanceStatus, $createdAt, $createdBy);
 
-        // Create a unique name for the image
-        $imageName = "{$userCNIC}-{$userName}-" . date('YmdHis') . '.' . pathinfo($userProfilePic['name'], PATHINFO_EXTENSION);
-        $imagePath = $uploadDir . $imageName;
-
-        // Move the uploaded file
-        if (!move_uploaded_file($userProfilePic['tmp_name'], $imagePath)) {
-            $imageError = "Failed to move uploaded file.";
-        }
-    }
-
-    // Check for uniqueness, except for the current user being updated
-    if (empty($imageError)) {
-
-        // Check if email, username, or CNIC already exists for another user
-        if (checkUniqueField($conn, 'email', $userEmail, $userId)) {
-            $_SESSION['message'][] = ["type" => "danger", "content" => "Email already exists for another user."];
-        } elseif (checkUniqueField($conn, 'username', $userName, $userId)) {
-            $_SESSION['message'][] = ["type" => "danger", "content" => "Username already exists for another user."];
-        } elseif (checkUniqueField($conn, 'cnic', $userCNIC, $userId)) {
-            $_SESSION['message'][] = ["type" => "danger", "content" => "CNIC already exists for another user."];
-        } else {
-            // Start a transaction
-            $conn->begin_transaction();
-
-            try {
-                // Prepare update query
-                $updateQuery = "UPDATE users SET first_name=?, last_name=?, cnic=?, dob=?, email=?, username=?, contact_number=?, whatsapp_contact=?, address=?, role_id=?, is_active=?, updated_by=?, updated_at=?";
-
-                // Add profile picture field if image uploaded successfully
-                if (!empty($imagePath)) {
-                    $updateQuery .= ", profile_pic_path=?";
-                    $queryParams = [$userFirstName, $userLastName, $userCNIC, $userDOB, $userEmail, $userName, $contactNumber, $whatsAppContact, $userAddress, $userRole, $userStatus, $updatedBy, $updatedAt, $imagePath, $userId];
-                    $paramTypes = "ssssssssssisssi";
-                } else {
-                    $queryParams = [$userFirstName, $userLastName, $userCNIC, $userDOB, $userEmail, $userName, $contactNumber, $whatsAppContact, $userAddress, $userRole, $userStatus, $updatedBy, $updatedAt, $userId];
-                    $paramTypes = "ssssssssssissi";
-                }
-
-                // Check if password is provided for update
-                if (!empty($userPassword)) {
-                    // Hash the password if provided
-                    $hashedPassword = password_hash($userPassword, PASSWORD_DEFAULT);
-                    $updateQuery .= ", password_hash=?";
-                    $queryParams[] = $hashedPassword;
-                    $paramTypes .= "s";
-                }
-
-                // Add where clause for user ID
-                $updateQuery .= " WHERE id = ?";
-
-                // Prepare the statement
-                $stmt = $conn->prepare($updateQuery);
-
-                // Bind the parameters
-                $stmt->bind_param($paramTypes, ...$queryParams);
-
-                // Execute the query
                 if ($stmt->execute()) {
                     $conn->commit();
-                    $_SESSION['message'][] = ["type" => "success", "content" => "User updated successfully!"];
-                    header("Location: manage-users.php");
-                    exit();
+                    $_SESSION['message'][] = ["type" => "success", "content" => "Check-in successful!"];
                 } else {
-                    throw new Exception("Failed to update user: " . $stmt->error);
+                    throw new Exception("Failed to check in: " . $stmt->error);
                 }
-            } catch (Exception $e) {
-                $conn->rollback();
-                $_SESSION['message'][] = ["type" => "danger", "content" => $e->getMessage()];
+            } else {
+                // User has already checked in today
+                $_SESSION['message'][] = ["type" => "danger", "content" => "You have already checked in today."];
+            }
+        } elseif (isset($_POST['btnCheckOut'])) {
+            // Check if the user has already checked out today
+            $checkQuery = "SELECT * FROM attendance WHERE user_id = ? AND attendance_date = ? AND check_out IS NOT NULL";
+            $stmt = $conn->prepare($checkQuery);
+            $stmt->bind_param("is", $userId, $currentDate);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            if ($result->num_rows == 0) {
+                // Update the check-out time for today's record
+                $updateQuery = "UPDATE attendance SET check_out = ?, updated_at = ?, updated_by = ? WHERE user_id = ? AND attendance_date = ?";
+                $stmt = $conn->prepare($updateQuery);
+                $stmt->bind_param("ssiis", $time, $updatedAt, $createdBy, $userId, $currentDate);
+
+                if ($stmt->execute()) {
+                    if ($stmt->affected_rows > 0) {
+                        $conn->commit();
+                        $_SESSION['message'][] = ["type" => "success", "content" => "Check-out successful!"];
+                    } else {
+                        throw new Exception("No check-in record found for today.");
+                    }
+                } else {
+                    throw new Exception("Failed to check out: " . $stmt->error);
+                }
+            } else {
+                // User has already checked out today
+                $_SESSION['message'][] = ["type" => "danger", "content" => "You have already checked out today. Only one check-out is allowed."];
             }
         }
-    } else {
-        $_SESSION['message'][] = ["type" => "danger", "content" => $imageError];
+    } catch (Exception $e) {
+        // Rollback transaction in case of error
+        $conn->rollback();
+        $_SESSION['message'][] = ["type" => "danger", "content" => $e->getMessage()];
     }
 }
-
 
 ?>
 
@@ -353,48 +241,38 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                         <div class="col-xl-12">
                             <div class="card">
                                 <div class="card-body">
-                                    <h4 class="header-title">Attendance Record for All Workforce</h4>
-                                    <p class="text-muted fs-14"></p>
+                                    <h4 class="header-title">Attendance Record</h4>
+                                    <p class="text-muted fs-14">Your attendance records are listed below.</p>
                                     <div class="table-responsive-sm">
                                         <table id="scroll-horizontal-datatable" class="table table-striped w-100 nowrap">
                                             <thead>
                                                 <tr>
                                                     <th>ID</th>
-                                                    <th>First Name</th>
-                                                    <th>Last Name</th>
-                                                    <th>CNIC</th>
-                                                    <th>Date of Birth</th>
-                                                    <th>Email</th>
                                                     <th>Username</th>
-                                                    <th>Contact No.</th>
-                                                    <th>WhatsApp Contact No.</th>
-                                                    <th>Address</th>
-                                                    <th>Profile Pic</th>
-                                                    <th>Role</th>
-                                                    <th>Status</th>
-                                                    <th>Created By</th>
-                                                    <th>Created At</th>
-                                                    <th>Actions</th>
+                                                    <th>Attendance Date</th>
+                                                    <th>Check-In</th>
+                                                    <th>Check-Out</th>
+                                                    <th>Attendance Status</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 <?php
+                                                $current_user = $_SESSION['username']; // Assuming 'username' is stored in session when logged in
+
                                                 try {
                                                     // Start transaction if needed
                                                     $conn->begin_transaction();
 
-                                                    // Define the query to fetch roles with the user who created and updated them
-                                                    $query = "SELECT u.*, 
-                                                                    r.role_name, 
-                                                                    uc.username AS created_by_username, 
-                                                                    uu.username AS updated_by_username
-                                                                FROM users u
-                                                                LEFT JOIN roles r ON u.role_id = r.id
-                                                                LEFT JOIN users uc ON u.created_by = uc.id
-                                                                LEFT JOIN users uu ON u.updated_by = uu.id";
+                                                    // Query to fetch attendance records of the logged-in user
+                                                    $query = "SELECT a.id, u.username, a.attendance_date, a.check_in, a.check_out, a.attendance_status 
+                                          FROM attendance a
+                                          LEFT JOIN users u ON a.user_id = u.id
+                                          WHERE u.username = ?"; // Select only the logged-in user's records
 
                                                     // Prepare the statement
                                                     if ($stmt = $conn->prepare($query)) {
+                                                        // Bind the parameter (username) to the prepared statement
+                                                        $stmt->bind_param("s", $current_user);
 
                                                         // Execute the statement
                                                         $stmt->execute();
@@ -406,45 +284,28 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                                                         if ($result->num_rows > 0) {
                                                             // Loop through the results and display them
                                                             while ($row = $result->fetch_assoc()) {
+                                                                $id = 1;
                                                                 echo "<tr>";
-                                                                echo "<td>" . htmlspecialchars($row['id']) . "</td>";
-                                                                echo "<td>" . htmlspecialchars($row['first_name']) . "</td>";
-                                                                echo "<td>" . htmlspecialchars($row['last_name']) . "</td>";
-                                                                echo "<td>" . htmlspecialchars($row['cnic']) . "</td>";
-                                                                echo "<td>" . htmlspecialchars($row['dob']) . "</td>";
-                                                                echo "<td>" . htmlspecialchars($row['email']) . "</td>";
+                                                                echo "<td>" . $id++ . "</td>";
                                                                 echo "<td>" . htmlspecialchars($row['username']) . "</td>";
-                                                                echo "<td>" . htmlspecialchars($row['contact_number']) . "</td>";
-                                                                echo "<td>" . htmlspecialchars($row['whatsapp_contact']) . "</td>";
-                                                                echo "<td>" . htmlspecialchars($row['address']) . "</td>";
-                                                                echo "<td><img src='" . htmlspecialchars($row['profile_pic_path']) . "' alt='user-image' width='32' class='img-fluid avatar-sm rounded'></td>";
-                                                                echo "<td>" . htmlspecialchars($row['role_name']) . "</td>";
 
-                                                                // Convert status to Active/Inactive
-                                                                $statusText = $row['is_active'] == 1 ? 'Active' : 'Not Active';
+                                                                // Convert and display date in d-M-Y format
+                                                                echo "<td>" . htmlspecialchars(date('d-M-Y', strtotime($row['attendance_date']))) . "</td>";
+
+                                                                echo "<td>" . htmlspecialchars($row['check_in']) . "</td>";
+                                                                echo "<td>" . htmlspecialchars($row['check_out']) . "</td>";
+
+                                                                // Display the actual attendance status ('present' or 'absent')
+                                                                $statusText = ($row['attendance_status'] == 'present') ? 'Present' : 'Absent';
                                                                 echo "<td>" . htmlspecialchars($statusText) . "</td>";
-
-                                                                // Display the 'created by' username
-                                                                echo "<td>" . htmlspecialchars($row['created_by_username']) . "</td>";
-
-                                                                // Display the 'created at' date
-                                                                echo "<td>" . htmlspecialchars(date('d-M-Y', strtotime($row['created_at']))) . "</td>";
-
-                                                                // Edit button
-                                                                echo "<td>";
-                                                                echo "<a href='edit-user.php?id=" . urlencode($row['id']) . "' class='btn btn-warning'><i class='ri-pencil-line'></i></a>";
-                                                                echo "  ";
-                                                                // Delete button with confirmation
-                                                                echo "<a href='delete-user.php?id=" . urlencode($row['id']) . "' class='btn btn-danger' onclick='return confirmDelete();' ><i class='ri-delete-bin-line'></i></a>";
-                                                                echo "</td>";
 
                                                                 echo "</tr>";
                                                             }
                                                         } else {
-                                                            echo "<tr><td colspan='6'>No users found</td></tr>";
+                                                            echo "<tr><td colspan='6'>No attendance records found</td></tr>";
                                                         }
 
-                                                        // Commit the transaction (optional if you're modifying data)
+                                                        // Commit the transaction (optional)
                                                         $conn->commit();
                                                     } else {
                                                         throw new Exception("Error preparing query: " . $conn->error);
@@ -463,8 +324,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                                                     $conn->close();
                                                 }
                                                 ?>
-
-
                                             </tbody>
                                         </table>
                                     </div>
@@ -472,6 +331,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                             </div>
                         </div>
                     </div>
+
                 </div>
             </div>
             <?php include 'layouts/footer.php'; ?>
