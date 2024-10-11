@@ -192,7 +192,6 @@
         </div>
       </li>
 
-
       <li class="side-nav-title">User Management</li>
 
       <li class="side-nav-item">
