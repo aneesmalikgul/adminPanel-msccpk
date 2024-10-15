@@ -55,6 +55,7 @@ function hasPermission($permission_name)
 function getUserRole()
 {
     global $conn;
+    $role_name = '';
 
     // Ensure the session is started
     if (session_status() == PHP_SESSION_NONE) {
