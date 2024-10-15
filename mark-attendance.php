@@ -4,47 +4,12 @@ include 'layouts/config.php';
 include 'layouts/functions.php';
 include 'layouts/main.php';
 
-if (!hasPermission('manage_user') || !hasPermission('create_user')) {
+if (!hasPermission('mark_attendance') || !hasPermission('view_attendance')) {
     header('Location: index.php');
-    exit; // Make sure to call exit after the header to stop further script execution
-}
-
-$roles = [];
-try {
-    $conn->begin_transaction();
-
-    // Using a prepared statement
-    $queryRoles = "SELECT * FROM roles WHERE status = 1 ORDER BY id ASC;";
-    $stmt = $conn->prepare($queryRoles);
-
-    if ($stmt) {
-        $stmt->execute();
-        $resultRoles = $stmt->get_result();
-
-        if ($resultRoles) {
-            while ($row = $resultRoles->fetch_assoc()) {
-                $roles[] = $row;
-            }
-        } else {
-            throw new Exception('Error fetching roles: ' . $conn->error);
-        }
-
-        // Close the statement
-        $stmt->close();
-    } else {
-        throw new Exception('Prepare statement failed: ' . $conn->error);
-    }
-
-    // Commit the transaction
-    $conn->commit();
-} catch (Exception $e) {
-    // Rollback the transaction on error
-    $conn->rollback();
-    $_SESSION['message'] = ["type" => "error", "content" => $e->getMessage()];
+    exit;
 }
 
 
-// Assuming you have already established a database connection
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && (isset($_POST['btnCheckIn']) || isset($_POST['btnCheckOut']))) {
     // Fetch username from session
@@ -52,7 +17,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && (isset($_POST['btnCheckIn']) || isse
         $username = $_SESSION['username']; // Username from session
     } else {
         $_SESSION['message'][] = ["type" => "danger", "content" => "User session has expired. Please log in again."];
-        header("Location: login.php"); // Redirect to login page
+        header("Location:auth-login.php"); // Redirect to login page
         exit();
     }
 
@@ -68,7 +33,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && (isset($_POST['btnCheckIn']) || isse
         $userId = $user['id']; // User ID fetched from the database
     } else {
         $_SESSION['message'][] = ["type" => "danger", "content" => "User not found."];
-        header("Location: login.php");
+        header("Location: auth-login.php");
         exit();
     }
 
@@ -80,8 +45,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && (isset($_POST['btnCheckIn']) || isse
     // Common data
     $createdBy = $userId; // Assuming the user is creating their own attendance
     $attendanceStatus = 'present'; // Default attendance status
-    $createdAt = date('Y-m-d H:i:s'); // Current timestamp
-    $updatedAt = date('Y-m-d H:i:s'); // Current timestamp
+    $createdAt = date('Y-m-d H:i'); // Current timestamp
+    $updatedAt = date('Y-m-d H:i'); // Current timestamp
 
     // Start a transaction
     $conn->begin_transaction();
@@ -96,10 +61,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && (isset($_POST['btnCheckIn']) || isse
             $result = $stmt->get_result();
 
             if ($result->num_rows == 0) {
+                // Convert check-in time to 12-hour format before storing
+                $time12HourCheckIn = date("h:i A", strtotime($time));
+
                 // Insert a new check-in record
                 $insertQuery = "INSERT INTO attendance (user_id, attendance_date, check_in, attendance_status, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?)";
-                $stmt->prepare($insertQuery);
-                $stmt->bind_param("issssi", $userId, $date, $time, $attendanceStatus, $createdAt, $createdBy);
+                $stmt = $conn->prepare($insertQuery);
+                $stmt->bind_param("issssi", $userId, $date, $time12HourCheckIn, $attendanceStatus, $createdAt, $createdBy);
 
                 if ($stmt->execute()) {
                     $conn->commit();
@@ -120,10 +88,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && (isset($_POST['btnCheckIn']) || isse
             $result = $stmt->get_result();
 
             if ($result->num_rows == 0) {
+                // Convert check-out time to 12-hour format before storing
+                $time12HourCheckOut = date("h:i A", strtotime($time)); // Converts to 12-hour format
+
                 // Update the check-out time for today's record
                 $updateQuery = "UPDATE attendance SET check_out = ?, updated_at = ?, updated_by = ? WHERE user_id = ? AND attendance_date = ?";
                 $stmt = $conn->prepare($updateQuery);
-                $stmt->bind_param("ssiis", $time, $updatedAt, $createdBy, $userId, $currentDate);
+                $stmt->bind_param("ssiis", $time12HourCheckOut, $updatedAt, $createdBy, $userId, $currentDate);
 
                 if ($stmt->execute()) {
                     if ($stmt->affected_rows > 0) {
@@ -279,7 +250,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && (isset($_POST['btnCheckIn']) || isse
 
                                                         // Get the result set
                                                         $result = $stmt->get_result();
-
+                                                        $id = 0;
                                                         // Check if rows were found
                                                         if ($result->num_rows > 0) {
                                                             // Loop through the results and display them
@@ -290,7 +261,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && (isset($_POST['btnCheckIn']) || isse
                                                                 echo "<td>" . htmlspecialchars($row['username']) . "</td>";
 
                                                                 // Convert and display date in d-M-Y format
-                                                                echo "<td>" . htmlspecialchars(date('d-M-Y', strtotime($row['attendance_date']))) . "</td>";
+                                                                echo "<td>" . htmlspecialchars($row['attendance_date']) . "</td>";
 
                                                                 echo "<td>" . htmlspecialchars($row['check_in']) . "</td>";
                                                                 echo "<td>" . htmlspecialchars($row['check_out']) . "</td>";

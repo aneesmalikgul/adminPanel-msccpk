@@ -16,3 +16,6 @@ CREATE TABLE attendance (
     FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL,
     UNIQUE KEY unique_attendance (user_id, attendance_date)  -- Corrected the column name to attendance_date
 );
+
+-- 11-Oct-2024 12:30PM
+UPDATE permissions SET permission_name = 'mark_attendance' WHERE id = 8;
