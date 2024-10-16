@@ -76,6 +76,8 @@ try {
 } catch (Exception $e) {
     $conn->rollback();
     $_SESSION['message'] = ['type' => 'error', 'text' => $e->getMessage()];
+    header('Location: add-tasks.php'); // Redirect on error
+    exit;
 }
 
 // Check if $stmtProjects is defined before closing
@@ -187,6 +189,8 @@ if ($stmtProjects) {
                                         <div class="row mb-3">
                                             <div class="col-lg-12 text-center">
                                                 <button type="submit" id="btnUpdateTask" name="btnUpdateTask" class="btn btn-primary">Update Task</button>
+                                                <button type="button" class="btn btn-danger" id="btnUpdateAssignTask" name="btnUpdateAssignTask" onclick="window.location.href='add-tasks.php'">Cancel Update</button>
+
                                             </div>
                                         </div>
                                     </form>

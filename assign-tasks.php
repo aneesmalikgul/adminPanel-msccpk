@@ -4,6 +4,7 @@ include 'layouts/config.php';
 include 'layouts/functions.php';
 include 'layouts/main.php';
 
+
 // Check if the user has the necessary permissions
 if (!hasPermission('view_tasks') || !hasPermission('create_tasks')) {
     header('Location: index.php');
@@ -11,20 +12,38 @@ if (!hasPermission('view_tasks') || !hasPermission('create_tasks')) {
 }
 
 // Fetch  projects for dropdowns
-$projects = [];
-
+$tasks = [];
+$assignTo = [];
+$assignBy = [];
 try {
     // Start the transaction
     $conn->begin_transaction();
+    // Query to fetch task
+    $queryTasks = "SELECT id, task_title FROM tasks ORDER BY id ASC;";
+    $stmtTasks = $conn->prepare($queryTasks);
+    $stmtTasks->execute();
+    $resultTasks = $stmtTasks->get_result();
+    while ($row = $resultTasks->fetch_assoc()) {
+        $tasks[] = $row;
+    }
 
-    // Query to fetch projects
-    $queryProjects = "SELECT id, project_name FROM projects ORDER BY id ASC;";
-    $stmtProjects = $conn->prepare($queryProjects);
-    $stmtProjects->execute();
-    $resultProjects = $stmtProjects->get_result();
+    // Query to fetch users worker
+    $queryAssignTo = "SELECT id, username FROM users WHERE role_id = 2 OR role_id = 3  ORDER BY id ASC;";
+    $stmtAssignTo = $conn->prepare($queryAssignTo);
+    $stmtAssignTo->execute();
+    $resultAssignTo = $stmtAssignTo->get_result();
 
-    while ($row = $resultProjects->fetch_assoc()) {
-        $projects[] = $row;
+    while ($row = $resultAssignTo->fetch_assoc()) {
+        $assignTo[] = $row;
+    }
+    // Query to fetch users/admin
+    $queryAssignBy = "SELECT id, username FROM users WHERE role_id = 1 ORDER BY id ASC;";
+    $stmtAssignBy = $conn->prepare($queryAssignBy);
+    $stmtAssignBy->execute();
+    $resultAssignBy = $stmtAssignBy->get_result();
+
+    while ($row = $resultAssignBy->fetch_assoc()) {
+        $assignBy[] = $row;
     }
 
     // Commit the transaction
@@ -36,27 +55,31 @@ try {
 }
 
 // Close the statements
-$stmtProjects->close();
-
+$stmtTasks->close();
+$stmtAssignTo->close();
+$stmtAssignBy->close();
 // If form is submitted
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveTask'])) {
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnAssignTask'])) {
     // Get POST data and sanitize
     $taskName = isset($_POST['taskName']) ? $_POST['taskName'] : '';
-    $taskDetails = isset($_POST['taskDetails']) ? $_POST['taskDetails'] : '';
-    $projectId = isset($_POST['assignProject']) ? (int)$_POST['assignProject'] : 0;
-    $taskPriority = isset($_POST['taskPriority']) ? $_POST['taskPriority'] : '';
-    $taskStatus = isset($_POST['taskStatus']) ? (int)$_POST['taskStatus'] : 1;
-    $createdBy = $_SESSION['user_id'];
+    $assignTo = isset($_POST['assignTo']) ? $_POST['assignTo'] : '';
+    $assignworker = isset($_POST['assignBy']) ? $_POST['assignBy'] : '';
+    $assignDate = isset($_POST['assignAt']) ? $_POST['assignAt'] : '';
+    $taskStatus = isset($_POST['taskStatus']) ? $_POST['taskStatus'] : '';
+    $taskRemark = isset($_POST['taskRemark']) ? $_POST['taskRemark'] : '';
     $updatedBy = $_SESSION['user_id'];
+    $updateAT = date('Y-m-d H:i:s');
 
     try {
         // Start the transaction
         $conn->begin_transaction();
 
-        // Insert into tasks table
-        $stmt = $conn->prepare("INSERT INTO tasks (	task_title, task_description, project_id, priority, status, created_by, updated_by) 
-                                VALUES (?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param('ssissii', $taskName, $taskDetails, $projectId, $taskPriority, $taskStatus, $createdBy, $updatedBy);
+        // Prepare the SQL statement
+        $stmt = $conn->prepare("INSERT INTO task_assignments (task_id, assigned_to, assigned_by, assigned_at, updated_at, updated_by, status, remarks) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param('iiisssss', $taskName, $assignTo, $assignworker, $assignDate, $updateAT, $updatedBy, $taskStatus, $taskRemark);
+
+        // Execute the statement
 
         if ($stmt->execute()) {
             $_SESSION['message'][] = ['type' => 'success', 'content' => 'Task assigned successfully!'];
@@ -73,36 +96,35 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveTask'])) {
     }
 
     // Redirect to the tasks page with a message
-    header('Location: add-tasks.php');
+    header('Location: assign-tasks.php');
     exit();
 }
-
-// Code handling the update operation
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['btnUpdateTask'])) {
+// Code handling the update operation for task assignment
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['btnUpdateAssignTask'])) {
     // Get and sanitize POST data
-    $taskId = isset($_POST['taskId']) ? intval($_POST['taskId']) : 0;
-    $projectId = isset($_POST['assignProject']) ? intval($_POST['assignProject']) : 0;
-    $taskTitle = isset($_POST['taskName']) ? trim($_POST['taskName']) : '';
-    $taskDescription = isset($_POST['taskDetails']) ? trim($_POST['taskDetails']) : '';
-    $priority = isset($_POST['taskPriority']) ? $_POST['taskPriority'] : 'Medium';
-    $status = isset($_POST['taskStatus']) ? intval($_POST['taskStatus']) : 0;
+    $taskAssignmentId = isset($_POST['taskAssignmentId']) ? intval($_POST['taskAssignmentId']) : 0;
+    $taskName = isset($_POST['taskName']) ? intval($_POST['taskName']) : 0;
+    $assignTo = isset($_POST['assignTo']) ? intval($_POST['assignTo']) : 0;
+    $assignBy = isset($_POST['assignBy']) ? intval($_POST['assignBy']) : 0;
+    $assignAt = isset($_POST['assignAt']) ? $_POST['assignAt'] : null;
+    $taskStatus = isset($_POST['taskStatus']) ? $_POST['taskStatus'] : '';
+    $taskRemark = isset($_POST['taskRemark']) ? htmlspecialchars($_POST['taskRemark']) : '';
 
     try {
         // Validate input
-        if ($taskId <= 0 || $projectId <= 0 || empty($taskTitle)) {
+        if ($taskAssignmentId <= 0 || $taskName <= 0 || $assignTo <= 0 || $assignBy <= 0 || empty($assignAt) || empty($taskStatus)) {
             throw new Exception('Invalid input data.');
         }
 
         // Begin transaction
-        $conn->begin_transaction();
+        $conn->begin_transaction(MYSQLI_TRANS_START_READ_WRITE);
 
         // Prepare the update query
         $query = "
-            UPDATE tasks
-            SET project_id = ?, task_title = ?, task_description = ?, priority = ?, status = ?
+            UPDATE task_assignments
+            SET task_id = ?, assigned_to = ?, assigned_by = ?, assigned_at = ?, status = ?, remarks = ?
             WHERE id = ?;
         ";
-
         $stmt = $conn->prepare($query);
 
         if ($stmt === false) {
@@ -110,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['btnUpdateTask'])) {
         }
 
         // Bind parameters and execute statement
-        $stmt->bind_param("isssii", $projectId, $taskTitle, $taskDescription, $priority, $status, $taskId);
+        $stmt->bind_param("iiisssi", $taskName, $assignTo, $assignBy, $assignAt, $taskStatus, $taskRemark, $taskAssignmentId);
         if (!$stmt->execute()) {
             throw new Exception('Execute statement failed: ' . $stmt->error);
         }
@@ -119,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['btnUpdateTask'])) {
         $conn->commit();
 
         // Set success message and redirect
-        $_SESSION['message'][] = ['type' => 'success', 'content' => 'Task updated successfully.'];
+        $_SESSION['message'][] = ['type' => 'success', 'content' => 'Task assignment updated successfully.'];
     } catch (Exception $e) {
         // Rollback transaction on error
         $conn->rollback();
@@ -133,7 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['btnUpdateTask'])) {
         }
 
         // Redirect to ensure page reload
-        header('Location: add-tasks.php');
+        header('Location: assign-tasks.php');
         exit();
     }
 }
@@ -141,7 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['btnUpdateTask'])) {
 ?>
 
 <head>
-    <title>User Roles | Mohsin Shaheen Construction Company</title>
+    <title>Assign Task | Mohsin Shaheen Construction Company</title>
     <?php include 'layouts/title-meta.php'; ?>
     <?php include 'layouts/head-css.php'; ?>
     <style></style>
@@ -162,17 +184,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['btnUpdateTask'])) {
                                     <ol class="breadcrumb m-0">
                                         <li class="breadcrumb-item"><a href="javascript: void(0);">mscc.pk</a></li>
                                         <li class="breadcrumb-item"><a href="javascript: void(0);">Task Management</a></li>
-                                        <li class="breadcrumb-item active"> Add Task</li>
+                                        <li class="breadcrumb-item active"> Assign Task</li>
                                     </ol>
                                 </div>
-                                <h4 class="page-title">Add Task</h4>
+                                <h4 class="page-title">Assign Task</h4>
                             </div>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-12">
                             <?php displaySessionMessage(); ?>
-                            <h2 class="text-center">Create New Task</h2>
+                            <h2 class="text-center">Assign New Task</h2>
                             <div class="card">
                                 <div class="card-body">
                                     <p class="text-muted fs-14"> </p>
@@ -180,81 +202,93 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['btnUpdateTask'])) {
                                         <div>
                                             <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="post" class="needs-validation" novalidate enctype="multipart/form-data">
                                                 <div class="row mb-3">
-                                                    <h3>Task Characteristics</h3>
-
+                                                    <h3> Task Distribution</h3>
                                                     <!-- Task Name Input -->
                                                     <div class="col-lg-6">
                                                         <div class="mb-3">
                                                             <label for="taskName" class="form-label">Task Name</label>
-                                                            <input type="text" id="taskName" name="taskName" class="form-control" required placeholder="Enter the name of Task">
+                                                            <select id="taskName" name="taskName" class="form-select" required>
+                                                                <option selected disabled value="">Select Task</option>
+                                                                <?php foreach ($tasks as $task): ?>
+                                                                    <option value="<?php echo $task['id']; ?>"><?php echo $task['task_title']; ?></option>
+                                                                <?php endforeach; ?>
+                                                            </select>
+                                                            <div class="valid-feedback">Looks good!</div>
+                                                            <div class="invalid-feedback">Please fill this field.</div>
+                                                        </div>
+                                                    </div>
+                                                    <!-- Assign to Project Dropdown -->
+                                                    <div class="col-lg-6">
+                                                        <div class="mb-3">
+                                                            <label for="assignTo" class="form-label">Assign To</label>
+                                                            <select id="assignTo" name="assignTo" class="form-select" required>
+                                                                <option selected disabled value="">Select Worker</option>
+                                                                <?php foreach ($assignTo as $worker): ?>
+                                                                    <option value="<?php echo $worker['id']; ?>"><?php echo $worker['username']; ?></option>
+                                                                <?php endforeach; ?>
+                                                            </select>
+                                                            <div class="valid-feedback">Looks good!</div>
+                                                            <div class="invalid-feedback">Please fill this field.</div>
+                                                        </div>
+                                                    </div>
+                                                    <!-- Assign BY Project Dropdown -->
+                                                    <div class="col-lg-6">
+                                                        <div class="mb-3">
+                                                            <label for="assignBy" class="form-label">Assign By</label>
+                                                            <select id="assignBy" name="assignBy" class="form-select" required>
+                                                                <option selected disabled value="">Select Assign By</option>
+                                                                <?php foreach ($assignBy as $admin): ?>
+                                                                    <option value="<?php echo $admin['id']; ?>"><?php echo $admin['username']; ?></option>
+                                                                <?php endforeach; ?>
+                                                            </select>
                                                             <div class="valid-feedback">Looks good!</div>
                                                             <div class="invalid-feedback">Please fill this field.</div>
                                                         </div>
                                                     </div>
 
-
-                                                    <!-- Assign to Project Dropdown -->
+                                                    <!-- Assign Date Input -->
                                                     <div class="col-lg-6">
                                                         <div class="mb-3">
-                                                            <label for="assignProject" class="form-label">Assign to Project</label>
-                                                            <select id="assignProject" name="assignProject" class="form-select" required>
-                                                                <option selected disabled value="">Select Project</option>
-                                                                <?php foreach ($projects as $project): ?>
-                                                                    <option value="<?php echo $project['id']; ?>"><?php echo $project['project_name']; ?></option>
-                                                                <?php endforeach; ?>
-                                                            </select>
-                                                            <div class="valid-feedback">Looks good!</div>
-                                                            <div class="invalid-feedback">Please select a project.</div>
+                                                            <label for="assignAt" class="form-label">Assign At</label>
+                                                            <input type="date" class="form-control" id="assignAt" name="assignAt" required>
                                                         </div>
                                                     </div>
 
-                                                    <!-- Task priority Dropdown -->
-                                                    <div class="col-lg-6">
-                                                        <div class="mb-3">
-                                                            <label for="taskPriority" class="form-label">Task Priority</label>
-                                                            <select id="taskPriority" name="taskPriority" class="form-select" required>
-                                                                <option selected disabled value="">Select Prioriy</option>
-                                                                <option value="Low">Low </option>
-                                                                <option value="Medium">Medium</option>
-                                                                <option value="High">High</option>
-                                                            </select>
-                                                            <div class="valid-feedback">Looks good!</div>
-                                                            <div class="invalid-feedback">Please select a task Priority.</div>
-                                                        </div>
-                                                    </div>
                                                     <!-- Task Status Dropdown -->
                                                     <div class="col-lg-6">
                                                         <div class="mb-3">
                                                             <label for="taskStatus" class="form-label">Task Status</label>
                                                             <select id="taskStatus" name="taskStatus" class="form-select" required>
                                                                 <option selected disabled value="">Select Task Status</option>
-                                                                <option value="1">Active</option>
-                                                                <option value="0">Inactive</option>
+                                                                <option value="assigned">Assigned</option>
+                                                                <option value="in_Progress">In Progress</option>
+                                                                <option value="completed">Completed</option>
+                                                                <option value="on_Hold">On Hold</option>
+                                                                <option value="cancelled">Cancelled</option>
                                                             </select>
                                                             <div class="valid-feedback">Looks good!</div>
                                                             <div class="invalid-feedback">Please select a task status.</div>
                                                         </div>
                                                     </div>
-                                                    <!-- Task Details Input -->
-                                                    <div class="col-lg-12">
+
+                                                    <!-- Task Remark Input -->
+                                                    <div class="col-lg-6">
                                                         <div class="mb-3">
-                                                            <label for="taskDetails" class="form-label">Task Details</label>
-                                                            <textarea id="taskDetails" name="taskDetails" class="form-control" rows="3" required></textarea>
+                                                            <label for="taskRemark" class="form-label">Remark</label>
+                                                            <input type="text" id="taskRemark" name="taskRemark" class="form-control" required placeholder="Enter remark about the task">
                                                             <div class="valid-feedback">Looks good!</div>
                                                             <div class="invalid-feedback">Please fill this field.</div>
                                                         </div>
                                                     </div>
-
                                                 </div>
 
                                                 <!-- Save Task Button -->
                                                 <div class="row mb-3">
                                                     <div class="col-lg-12 text-center">
-                                                        <button type="submit" id="btnSaveTask" name="btnSaveTask" class="btn btn-primary">Save Task</button>
+                                                        <button type="submit" id="btnSaveTask" name="btnAssignTask" class="btn btn-primary">Assign Task</button>
                                                     </div>
                                                 </div>
                                             </form>
-
                                         </div>
                                     </div>
                                 </div>
@@ -272,82 +306,94 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['btnUpdateTask'])) {
                                             <thead>
                                                 <tr>
                                                     <th>ID</th>
-                                                    <th>Task Title</th>
-                                                    <th> Task Description</th>
-                                                    <th> Task Priority</th>
-                                                    <th>Project Name</th>
-                                                    <th> Task Status</th>
-                                                    <th>Created By</th>
-                                                    <th>Created At</th>
+                                                    <th>Task Name</th>
+                                                    <th>Assigned To</th>
+                                                    <th>Assigned By</th>
+                                                    <th>Status</th>
+                                                    <th>Updated By</th>
+                                                    <th>Updated At</th>
+                                                    <th>Remarks</th>
                                                     <th>Actions</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 <?php
                                                 try {
-                                                    // Start transaction
-                                                    mysqli_begin_transaction($conn);
+                                                    // Start the transaction
+                                                    $conn->begin_transaction();
 
-                                                    // Query to fetch tasks with project name and creator's username
-                                                    $query = "SELECT t.id, t.task_title, t.task_description, t.priority, t.status, t.created_at, 
-                             p.project_name, u.username AS created_by
-                      FROM tasks t
-                      LEFT JOIN projects p ON t.project_id = p.id
-                      LEFT JOIN users u ON t.created_by = u.id
-                      ORDER BY t.id ASC;";
+                                                    // Define the query to fetch task assignments with task name, assigned to, assigned by, and updated by
+                                                    $query = "
+                SELECT ta.id, ta.status, ta.remarks, ta.updated_at,
+                       t.task_title AS task_name,
+                       u1.username AS assigned_to,
+                       u2.username AS assigned_by,
+                       u3.username AS updated_by
+                FROM task_assignments ta
+                LEFT JOIN tasks t ON t.id = ta.task_id
+                LEFT JOIN users u1 ON u1.id = ta.assigned_to
+                LEFT JOIN users u2 ON u2.id = ta.assigned_by
+                LEFT JOIN users u3 ON u3.id = ta.updated_by
+                ORDER BY ta.id ASC;
+            ";
 
-                                                    // Execute the query
-                                                    $result = mysqli_query($conn, $query);
-
-                                                    // Check if the query execution was successful
-                                                    if (!$result) {
-                                                        throw new Exception("Error executing query: " . mysqli_error($conn));
+                                                    // Prepare the statement
+                                                    $stmt = $conn->prepare($query);
+                                                    if (!$stmt) {
+                                                        throw new Exception('Prepare statement failed: ' . $conn->error);
                                                     }
 
-                                                    // If the query is successful, loop through the results
-                                                    if (mysqli_num_rows($result) > 0) {
-                                                        while ($row = mysqli_fetch_assoc($result)) {
+                                                    // Execute the query
+                                                    $stmt->execute();
+                                                    $result = $stmt->get_result();
+
+                                                    // Check if the query returned results
+                                                    if ($result && $result->num_rows > 0) {
+                                                        // Loop through the results
+                                                        while ($row = $result->fetch_assoc()) {
                                                             echo "<tr>";
                                                             echo "<td>" . htmlspecialchars($row['id']) . "</td>";
-                                                            echo "<td>" . htmlspecialchars($row['task_title']) . "</td>";
-                                                            echo "<td>" . htmlspecialchars($row['task_description']) . "</td>";
-                                                            echo "<td>" . htmlspecialchars(ucfirst($row['priority'])) . "</td>";
-                                                            echo "<td>" . htmlspecialchars($row['project_name']) . "</td>";
+                                                            echo "<td>" . htmlspecialchars($row['task_name']) . "</td>";
+                                                            echo "<td>" . htmlspecialchars($row['assigned_to']) . "</td>";
+                                                            echo "<td>" . htmlspecialchars($row['assigned_by']) . "</td>";
 
-                                                            // Convert status to Active/Inactive
-                                                            $statusText = $row['status'] == 1 ? 'Active' : 'Not Active';
-                                                            echo "<td>" . htmlspecialchars($statusText) . "</td>";
+                                                            // Convert status for better display
+                                                            echo "<td>" . htmlspecialchars(ucwords(str_replace('_', ' ', $row['status']))) . "</td>";
 
-                                                            echo "<td>" . htmlspecialchars($row['created_by']) . "</td>";
-                                                            echo "<td>" . htmlspecialchars(date('d-M-Y', strtotime($row['created_at']))) . "</td>";
+                                                            echo "<td>" . htmlspecialchars($row['updated_by']) . "</td>";
+                                                            echo "<td>" . htmlspecialchars(date('d-M-Y', strtotime($row['updated_at']))) . "</td>";
+                                                            echo "<td>" . htmlspecialchars($row['remarks']) . "</td>";
                                                             echo "<td>";
                                                             // Edit button
-                                                            echo "<a href='edit-task.php?id=" . urlencode($row['id']) . "' class='btn btn-warning'><i class='ri-pencil-line'></i></a>";
+                                                            echo "<a href='edit-assign-task.php?id=" . urlencode($row['id']) . "' class='btn btn-warning'><i class='ri-pencil-line'></i></a>";
                                                             echo "  ";
                                                             // Delete button
-                                                            echo "<a href='delete-task.php?id=" . urlencode($row['id']) . "' class='btn btn-danger' onclick='return confirmDelete();' ><i class='ri-delete-bin-line'></i></a>";
+                                                            echo "<a href='delete-assign-tasks.php?id=" . urlencode($row['id']) . "' class='btn btn-danger' onclick='return confirmDelete();'><i class='ri-delete-bin-line'></i></a>";
                                                             echo "</td>";
                                                             echo "</tr>";
                                                         }
                                                     } else {
-                                                        echo "<tr><td colspan='9'>No tasks found</td></tr>";
+                                                        echo "<tr><td colspan='9'>No task assignments found</td></tr>";
                                                     }
 
-                                                    // Commit transaction after fetching tasks
+                                                    // Commit the transaction
                                                     $conn->commit();
                                                 } catch (Exception $e) {
-                                                    // Rollback transaction in case of error
+                                                    // Rollback in case of error
                                                     $conn->rollback();
-                                                    $_SESSION['message'] = ['type' => 'error', 'content' => $e->getMessage()];
-                                                }
 
-                                                // Free result set only if the query was successful and $result is valid
-                                                if (isset($result) && $result instanceof mysqli_result) {
-                                                    mysqli_free_result($result);
+                                                    // Display or log the error
+                                                    echo "<tr><td colspan='9'>Error: " . $e->getMessage() . "</td></tr>";
+                                                } finally {
+                                                    // Close the statement
+                                                    if (isset($stmt)) {
+                                                        $stmt->close();
+                                                    }
                                                 }
                                                 ?>
                                             </tbody>
                                         </table>
+
 
                                     </div> <!-- table-responsive-sm -->
                                 </div> <!-- card-body -->
@@ -402,3 +448,5 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['btnUpdateTask'])) {
         });
     </script>
 </body>
+
+</html>
