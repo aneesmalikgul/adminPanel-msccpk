@@ -141,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['btnUpdateTask'])) {
 ?>
 
 <head>
-    <title>User Roles | Mohsin Shaheen Construction Company</title>
+    <title>New Task | Mohsin Shaheen Construction Company</title>
     <?php include 'layouts/title-meta.php'; ?>
     <?php include 'layouts/head-css.php'; ?>
     <style></style>
