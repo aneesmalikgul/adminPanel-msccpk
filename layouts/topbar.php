@@ -358,7 +358,7 @@
                     </div>
 
 
-                    <a href="pages-profile.php" class="dropdown-item">
+                    <a href="user-profile.php" class="dropdown-item">
                         <i class="ri-account-circle-line fs-18 align-middle me-1"></i>
                         <span>My Account</span>
                     </a>
