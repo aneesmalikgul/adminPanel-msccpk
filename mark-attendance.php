@@ -123,7 +123,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && (isset($_POST['btnCheckIn']) || isse
 
 
 <head>
-    <title>Manage Users | Mohsin Shaheen Construction Company</title>
+    <title>Mark Attendance | Mohsin Shaheen Construction Company</title>
     <?php include 'layouts/title-meta.php'; ?>
 
     <!-- Select2 css -->

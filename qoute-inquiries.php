@@ -76,6 +76,7 @@ if (!hasPermission('view_inquiry')) {
                                                     <th>Structure Type</th>
                                                     <th>Created At</th>
                                                     <th>Status</th>
+                                                    <th>Action</th>
 
                                                 </tr>
                                             </thead>
@@ -96,6 +97,8 @@ if (!hasPermission('view_inquiry')) {
                                                         echo "<td>" . htmlspecialchars($row['structure_type']) . "</td>";
                                                         echo "<td>" . htmlspecialchars(date('d-M-Y', strtotime($row['created_at']))) . "</td>";
                                                         echo "<td>" . htmlspecialchars($row['status']) . "</td>";
+                                                        echo "<td><a href='qoute-inquiries-status-update.php?id=" . urlencode($row['id']) . "' class='btn btn-info'>View</a></td>";
+
                                                         echo "</tr>";
                                                     }
                                                 } else {
