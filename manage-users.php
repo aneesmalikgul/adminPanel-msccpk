@@ -558,6 +558,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
 
                                                                 // Edit button
                                                                 echo "<td>";
+                                                                echo "<a href='user-profile.php?id=" . urlencode($row['id']) . "' class='btn btn-info'>View</a>";
+                                                                echo "  ";
                                                                 echo "<a href='edit-user.php?id=" . urlencode($row['id']) . "' class='btn btn-warning'><i class='ri-pencil-line'></i></a>";
                                                                 echo "  ";
                                                                 // Delete button with confirmation
