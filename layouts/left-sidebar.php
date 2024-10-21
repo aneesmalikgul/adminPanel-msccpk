@@ -155,12 +155,12 @@
       <li class="side-nav-title">Attendance Management</li>
 
       <li class="side-nav-item">
-        <a data-bs-toggle="collapse" href="#sidebarProjects" aria-expanded="false" aria-controls="sidebarProjects" class="side-nav-link">
+        <a data-bs-toggle="collapse" href="#sidebarAttendanceManage" aria-expanded="false" aria-controls="sidebarAttendanceManage" class="side-nav-link">
           <i class="ri-file-text-line"></i>
           <span>Attendance </span>
           <span class="menu-arrow"></span>
         </a>
-        <div class="collapse" id="sidebarProjects">
+        <div class="collapse" id="sidebarAttendanceManage">
           <ul class="side-nav-second-level">
             <li>
               <a href="mark-attendance.php">Mark Attendance</a>
