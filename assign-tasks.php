@@ -28,7 +28,7 @@ try {
     }
 
     // Query to fetch users worker
-    $queryAssignTo = "SELECT id, username FROM users WHERE role_id = 2 OR role_id = 3  ORDER BY id ASC;";
+    $queryAssignTo = "SELECT id, username,first_name,last_name FROM users WHERE role_id = 2 OR role_id = 3  ORDER BY id ASC;";
     $stmtAssignTo = $conn->prepare($queryAssignTo);
     $stmtAssignTo->execute();
     $resultAssignTo = $stmtAssignTo->get_result();
@@ -224,7 +224,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['btnUpdateAssignTask'])
                                                             <select id="assignTo" name="assignTo" class="form-select" required>
                                                                 <option selected disabled value="">Select Worker</option>
                                                                 <?php foreach ($assignTo as $worker): ?>
-                                                                    <option value="<?php echo $worker['id']; ?>"><?php echo $worker['username']; ?></option>
+                                                                    <option value="<?php echo $worker['id']; ?>"><?php echo $worker['first_name'] . ' ' . $worker['last_name']; ?></option>
                                                                 <?php endforeach; ?>
                                                             </select>
                                                             <div class="valid-feedback">Looks good!</div>
