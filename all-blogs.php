@@ -87,7 +87,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateBlog'])) {
     } catch (Exception $e) {
         $_SESSION['message'][] = array("type" => "error", "content" => "Error: " . $e->getMessage());
     } finally {
-        mysqli_close($conn);
+        // mysqli_close($conn);
         header("Location: all-blogs.php");
         exit();
     }

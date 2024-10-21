@@ -47,7 +47,7 @@ try {
 } finally {
     // Close the prepared statement and database connection
     if (isset($stmt)) mysqli_stmt_close($stmt);
-    mysqli_close($conn);
+    // mysqli_close($conn);
 }
 ?>
 
