@@ -77,38 +77,49 @@ if (isset($_GET['id'])) {
 
         // Query to fetch tasks assigned to the user
         $queryTasks = "
-            SELECT 
-                t.id AS task_id, 
-                tasks.task_title, 
-                t.assigned_at, 
-                t.status, 
-                t.remarks, 
-                assigned_by_user.username AS assigned_by_name, 
-                assigned_to_user.username AS assigned_to_name 
-            FROM 
-                task_assignments t 
-            JOIN 
-                users AS assigned_by_user ON t.assigned_by = assigned_by_user.id 
-            JOIN 
-                users AS assigned_to_user ON t.assigned_to = assigned_to_user.id 
-            JOIN 
-                tasks ON t.task_id = tasks.id 
-            WHERE 
-                t.assigned_to = ?;
-        ";
+    SELECT 
+        t.id AS task_id, 
+        tasks.task_title, 
+        t.assigned_at, 
+        t.status, 
+        t.remarks, 
+        assigned_by_user.username AS assigned_by_name, 
+        assigned_to_user.username AS assigned_to_name,
+        u.role_id AS user_role_id, 
+        r.role_name AS user_role_name 
+    FROM 
+        task_assignments t 
+    JOIN 
+        users AS assigned_by_user ON t.assigned_by = assigned_by_user.id 
+    JOIN 
+        users AS assigned_to_user ON t.assigned_to = assigned_to_user.id 
+    JOIN 
+        tasks ON t.task_id = tasks.id 
+    JOIN 
+        users u ON u.id = ? -- logged-in user's ID
+    JOIN 
+        roles r ON u.role_id = r.id
+    WHERE 
+        -- Condition to check roles and limit tasks based on role
+        (
+            (u.role_id = 1 AND t.assigned_by = ?) -- Admin sees only tasks they assigned
+            OR 
+            (u.role_id IN (2, 3) AND t.assigned_to = ?) -- Users see only tasks assigned to them
+        )
+";
 
         // Prepare and execute the tasks query
         $stmtTasks = $conn->prepare($queryTasks);
         if ($stmtTasks) {
-            $stmtTasks->bind_param("i", $user_id);
+            $stmtTasks->bind_param("iii", $user_id, $user_id, $user_id);  // Bind the logged-in user's ID in multiple places
             $stmtTasks->execute();
-            $resultTasks = $stmtTasks->get_result(); // Get the result set from the statement
+            $resultTasks = $stmtTasks->get_result();  // Get the result set from the statement
 
             // Fetch tasks into the tasks array
             if ($resultTasks->num_rows > 0) {
-                $tasks = $resultTasks->fetch_all(MYSQLI_ASSOC); // Efficient fetching
+                $tasks = $resultTasks->fetch_all(MYSQLI_ASSOC);  // Fetch all tasks efficiently
             }
-            $stmtTasks->close(); // Close tasks statement
+            $stmtTasks->close();  // Close the statement
         }
     } catch (Exception $e) {
         // Handle exception and set the session message
@@ -185,7 +196,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                 if ($stmt->execute()) {
                     $conn->commit();
                     $_SESSION['message'][] = ["type" => "success", "content" => "User updated successfully!"];
-                    header("Location: manage-users.php");
+                    header("Location: user-profile.php");
                     exit();
                 } else {
                     throw new Exception("Failed to update user data.");
@@ -409,33 +420,44 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                                                             <th>#</th>
                                                             <th>Task name</th>
                                                             <th>Start Date</th>
-                                                            <th>Assign By</th>
+                                                            <?php if (!empty($tasks) && $tasks[0]['user_role_id'] == 1): // If role_id is 1 (Admin) 
+                                                            ?>
+                                                                <th>Assign To</th>
+                                                            <?php else: // For role_id 2 or 3 (Users) 
+                                                            ?>
+                                                                <th>Assign By</th>
+                                                            <?php endif; ?>
                                                             <th>Remarks</th>
                                                             <th>Status</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
                                                         <?php
-                                                        // Check if tasks were found and display them
-                                                        if (!empty($tasks)) { // Check if the tasks array is not empty
+                                                        if (!empty($tasks)) {
                                                             foreach ($tasks as $index => $task) {
                                                                 echo "<tr>";
-                                                                echo "<td>" . htmlspecialchars($index + 1) . "</td>"; // Display task index
-                                                                echo "<td>" . htmlspecialchars($task['task_title']) . "</td>"; // Display task title
+                                                                echo "<td>" . htmlspecialchars($index + 1) . "</td>";
+                                                                echo "<td>" . htmlspecialchars($task['task_title']) . "</td>";
                                                                 echo "<td>" . htmlspecialchars(date('d-M-Y', strtotime($task['assigned_at']))) . "</td>";
-                                                                echo "<td>" . htmlspecialchars($task['assigned_by_name']) . "</td>";
+
+                                                                if ($task['user_role_id'] == 1) {
+                                                                    echo "<td>" . htmlspecialchars($task['assigned_to_name']) . "</td>";
+                                                                } else {
+                                                                    echo "<td>" . htmlspecialchars($task['assigned_by_name']) . "</td>";
+                                                                }
+
                                                                 echo "<td>" . htmlspecialchars($task['remarks']) . "</td>";
                                                                 echo "<td>" . htmlspecialchars($task['status']) . "</td>";
                                                                 echo "</tr>";
                                                             }
                                                         } else {
-                                                            echo "<tr><td colspan='6'>No Task Assignments Found</td></tr>"; // Adjusted colspan to 6
+                                                            echo "<tr><td colspan='6'>No Task Assignments Found</td></tr>";
                                                         }
                                                         ?>
                                                     </tbody>
-
-
                                                 </table>
+
+
                                                 <hr>
                                                 <table class="table table-sm table-centered table-hover table-borderless mb-0">
                                                     <br>
