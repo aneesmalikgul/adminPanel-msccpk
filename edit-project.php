@@ -302,7 +302,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateProject'])) {
                                                 </div>
                                                 <div class="row mb-3">
                                                     <div class="col-lg-12 text-center">
-                                                        <button type="submit" id="btnUpdateProject" name="btnUpdateProject" class="btn btn-primary ">Update Order</button>
+                                                        <button type="submit" id="btnUpdateProject" name="btnUpdateProject" class="btn btn-primary ">Update Project</button>
                                                     </div>
                                                 </div>
                                             </form>
