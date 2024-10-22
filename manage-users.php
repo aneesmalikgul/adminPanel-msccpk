@@ -257,11 +257,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
         $_SESSION['message'][] = ["type" => "danger", "content" => $imageError];
     }
 }
-
-
 ?>
-
-
 
 <head>
     <title>Manage Users | Mohsin Shaheen Construction Company</title>
@@ -272,7 +268,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
 
     <?php include 'layouts/head-css.php'; ?>
     <style></style>
-
 </head>
 
 <body>
