@@ -63,7 +63,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["btnSaveMaterialData"])
     } catch (Exception $e) {
         $_SESSION['message'][] = array("type" => "error", "content" => "Error: " . $e->getMessage());
     } finally {
-        mysqli_close($conn);
+        // mysqli_close($conn);
         header("location: material-rates.php");
         exit(); // Ensure script execution stops after header redirection
     }
@@ -136,7 +136,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["btnUpdateMaterialData"
     } catch (Exception $e) {
         $_SESSION['message'][] = array("type" => "error", "content" => "Error: " . $e->getMessage());
     } finally {
-        mysqli_close($conn);
+        // mysqli_close($conn);
         header("location: material-rates.php");
         exit(); // Ensure script execution stops after header redirection
     }
@@ -293,7 +293,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["btnUpdateMaterialData"
                                                     echo "<tr><td colspan='9'>No Materials Found</td></tr>";
                                                 }
 
-                                                mysqli_close($conn);
+                                                // mysqli_close($conn);
                                                 ?>
                                             </tbody>
                                         </table>

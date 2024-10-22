@@ -47,7 +47,7 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
         // Close the statement and connection
         mysqli_stmt_close($stmt);
         mysqli_stmt_close($stmt_image); // Close the image statement
-        mysqli_close($conn);
+        // mysqli_close($conn);
         header("location: material-rates.php");
         exit(); // Ensure script execution stops after header redirection
     }
