@@ -286,7 +286,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['btnUpdateAssignPermiss
             LEFT JOIN roles r ON r.id = rp.role_id
             LEFT JOIN permissions p ON p.id = rp.permission_id
             LEFT JOIN users u ON u.id = rp.created_by
-            WHERE rp.status = 1;
+            ;
         ";
 
                                                     // Prepare the statement

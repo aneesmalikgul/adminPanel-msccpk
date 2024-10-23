@@ -1,0 +1,8 @@
+SQL Query: UPDATE material_rates SET 
+                    material_name = 'Granite tiles', 
+                    description = 'use for Finishing House', 
+                    unit_size = 'Per Square Feet', 
+                    unit_price = '800.00', 
+                    material_image = 'assets/uploads/material_images/Awais 5 Marla.jpg',  
+                    updated_by = 'admin' 
+                WHERE id = '6'

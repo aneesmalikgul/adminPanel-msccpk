@@ -31,7 +31,7 @@ if ($result && $result->num_rows > 0) {
     $role = $result->fetch_assoc();
 } else {
     // If no role is found, set an error message and redirect back
-    $_SESSION['message'][] = ["type" => "error", "content" => "Role not found."];
+    $_SESSION['message'][] = ["type" => "danger", "content" => "Role not found."];
     header("Location: user-roles.php");
     exit();
 }
@@ -77,7 +77,7 @@ $stmt->close();
                                     <p class="text-muted fs-14"> </p>
                                     <div class="row">
                                         <div>
-                                            <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="post" class="needs-validation" novalidate enctype="multipart/form-data">
+                                            <form action="<?php echo "user-roles.php"; ?>" method="post" class="needs-validation" novalidate enctype="multipart/form-data">
                                                 <div class="row mb-3">
                                                     <h3>Update Role Information</h3>
                                                     <!-- Hidden input to store the role ID -->

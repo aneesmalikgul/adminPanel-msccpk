@@ -197,7 +197,7 @@ $stmtPermissions->close();
                                                 </div>
                                                 <div class="row mb-3">
                                                     <div class="col-lg-12 text-center">
-                                                        <button type="submit" id="btnUpdateAssignPermission" name="btnUpdateAssignPermission" class="btn btn-primary">Assign Permission</button>
+                                                        <button type="submit" id="btnUpdateAssignPermission" name="btnUpdateAssignPermission" class="btn btn-primary">Update Assigned Permission</button>
                                                     </div>
                                                 </div>
                                             </form>

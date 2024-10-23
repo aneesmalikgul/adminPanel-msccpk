@@ -65,10 +65,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnAssignTask'])) {
     $assignTo = isset($_POST['assignTo']) ? $_POST['assignTo'] : '';
     $assignworker = isset($_POST['assignBy']) ? $_POST['assignBy'] : '';
     $assignDate = isset($_POST['assignAt']) ? $_POST['assignAt'] : '';
-    $taskStatus = isset($_POST['taskStatus']) ? $_POST['taskStatus'] : '';
+    $taskStatus = isset($_POST['taskStatus']) ? $_POST['taskStatus'] : ''; // Check if this is being sent
     $taskRemark = isset($_POST['taskRemark']) ? $_POST['taskRemark'] : '';
     $updatedBy = $_SESSION['user_id'];
     $updateAT = date('Y-m-d H:i:s');
+
+    // Debugging line to check taskStatus value
+    if (empty($taskStatus)) {
+        $_SESSION['message'][] = ['type' => 'error', 'content' => 'Task status is empty!'];
+        header('Location: assign-tasks.php');
+        exit();
+    }
 
     try {
         // Start the transaction
@@ -77,10 +84,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnAssignTask'])) {
         // Prepare the SQL statement
         $stmt = $conn->prepare("INSERT INTO task_assignments (task_id, assigned_to, assigned_by, assigned_at, updated_at, updated_by, status, remarks) 
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+
+        // Assuming taskStatus is a string in the database
         $stmt->bind_param('iiisssss', $taskName, $assignTo, $assignworker, $assignDate, $updateAT, $updatedBy, $taskStatus, $taskRemark);
 
         // Execute the statement
-
         if ($stmt->execute()) {
             $_SESSION['message'][] = ['type' => 'success', 'content' => 'Task assigned successfully!'];
         } else {
