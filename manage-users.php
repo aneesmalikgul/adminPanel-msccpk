@@ -28,7 +28,6 @@ try {
         } else {
             throw new Exception('Error fetching roles: ' . $conn->error);
         }
-
         // Close the statement
         $stmt->close();
     } else {
