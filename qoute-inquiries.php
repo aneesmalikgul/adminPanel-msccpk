@@ -82,7 +82,7 @@ if (!hasPermission('view_inquiry')) {
                                             </thead>
                                             <tbody>
                                                 <?php
-                                                $query = "SELECT * FROM inquiries WHERE is_quote = 1";
+                                                $query = "SELECT * FROM inquiries WHERE is_quote = 1 ORDER BY id DESC";
                                                 $result = mysqli_query($conn, $query);
 
                                                 if ($result) {
@@ -105,7 +105,7 @@ if (!hasPermission('view_inquiry')) {
                                                     echo "<tr><td colspan='8'>No Quotation Inquiries Found</td></tr>";
                                                 }
 
-                                                mysqli_close($conn);
+                                                // mysqli_close($conn);
                                                 ?>
                                             </tbody>
                                         </table>

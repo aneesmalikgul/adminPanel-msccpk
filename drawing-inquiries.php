@@ -74,39 +74,44 @@ if (!hasPermission('view_inquiry')) {
                                                     <th>Created At</th>
                                                     <th>Status</th>
                                                     <th>Action</th>
-
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 <?php
-                                                $query = "SELECT * FROM inquiries WHERE is_drawing = 1";
+                                                // Modify the query to order by 'created_at' in descending order
+                                                $query = "SELECT * FROM inquiries WHERE is_drawing = 1 ORDER BY created_at DESC";
                                                 $result = mysqli_query($conn, $query);
 
                                                 if ($result) {
-                                                    while ($row = mysqli_fetch_assoc($result)) {
-                                                        echo "<tr>";
-                                                        echo "<td>" . htmlspecialchars($row['id']) . "</td>";
-                                                        echo "<td>" . htmlspecialchars($row['name']) . "</td>";
-                                                        echo "<td>" . htmlspecialchars($row['whatsapp_number']) . "</td>";
-                                                        echo "<td>" . htmlspecialchars($row['plot_location']) . "</td>";
-                                                        echo "<td>" . htmlspecialchars($row['plot_size']) . "</td>";
-                                                        echo "<td>" . htmlspecialchars($row['drawing_type']) . "</td>";
-                                                        echo "<td>" . htmlspecialchars(date('d-M-Y', strtotime($row['created_at']))) . "</td>";
-                                                        echo "<td>" . htmlspecialchars($row['status']) . "</td>";
-                                                        echo "<td><a href='drawing-inquiries-status-update.php?id=" . urlencode($row['id']) . "' class='btn btn-info'>View</a></td>";
-
-                                                        echo "</tr>";
+                                                    // Check if there are any inquiries
+                                                    if (mysqli_num_rows($result) > 0) {
+                                                        while ($row = mysqli_fetch_assoc($result)) {
+                                                            echo "<tr>";
+                                                            echo "<td>" . htmlspecialchars($row['id']) . "</td>";
+                                                            echo "<td>" . htmlspecialchars($row['name']) . "</td>";
+                                                            echo "<td>" . htmlspecialchars($row['whatsapp_number']) . "</td>";
+                                                            echo "<td>" . htmlspecialchars($row['plot_location']) . "</td>";
+                                                            echo "<td>" . htmlspecialchars($row['plot_size']) . "</td>";
+                                                            echo "<td>" . htmlspecialchars($row['drawing_type']) . "</td>";
+                                                            echo "<td>" . htmlspecialchars(date('d-M-Y', strtotime($row['created_at']))) . "</td>";
+                                                            echo "<td>" . htmlspecialchars($row['status']) . "</td>";
+                                                            echo "<td><a href='drawing-inquiries-status-update.php?id=" . urlencode($row['id']) . "' class='btn btn-info'>View</a></td>";
+                                                            echo "</tr>";
+                                                        }
+                                                    } else {
+                                                        echo "<tr><td colspan='9'>No Drawing Inquiries Found</td></tr>"; // Ensure colspan matches the number of columns
                                                     }
                                                 } else {
-                                                    echo "<tr><td colspan='8'>No Drawing Inquiries Found</td></tr>";
+                                                    echo "<tr><td colspan='9'>Error: " . htmlspecialchars(mysqli_error($conn)) . "</td></tr>"; // Display SQL error
                                                 }
 
-                                                mysqli_close($conn);
+                                                // Optionally close the connection here if no further queries will be executed
+                                                // mysqli_close($conn);
                                                 ?>
                                             </tbody>
                                         </table>
-
-                                    </div> <!-- end table-responsive-->
+                                    </div>
+                                    <!-- end table-responsive-->
 
                                 </div> <!-- end card body-->
                             </div> <!-- end card -->
