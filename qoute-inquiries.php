@@ -146,7 +146,10 @@ if (!hasPermission('view_inquiry')) {
         $(document).ready(function() {
             "use strict";
             $("#scroll-horizontal-datatable").DataTable({
-                scrollX: !0,
+                scrollX: true,
+                order: [
+                    [0, "desc"]
+                ], // Order by the 'Created At' column in descending order
                 language: {
                     paginate: {
                         previous: "<i class='ri-arrow-left-s-line'>",
@@ -156,7 +159,7 @@ if (!hasPermission('view_inquiry')) {
                 drawCallback: function() {
                     $(".dataTables_paginate > .pagination").addClass("pagination-rounded");
                 },
-            })
+            });
         });
     </script>
     <script>

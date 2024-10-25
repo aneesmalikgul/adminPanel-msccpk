@@ -79,7 +79,7 @@ if (!hasPermission('view_inquiry')) {
                                             <tbody>
                                                 <?php
                                                 // Modify the query to order by 'created_at' in descending order
-                                                $query = "SELECT * FROM inquiries WHERE is_drawing = 1 ORDER BY created_at DESC";
+                                                $query = "SELECT * FROM inquiries WHERE is_drawing = 1 ORDER BY id DESC";
                                                 $result = mysqli_query($conn, $query);
 
                                                 if ($result) {
@@ -147,7 +147,10 @@ if (!hasPermission('view_inquiry')) {
         $(document).ready(function() {
             "use strict";
             $("#scroll-horizontal-datatable").DataTable({
-                scrollX: !0,
+                scrollX: true,
+                order: [
+                    [0, "desc"]
+                ], // Order by the 'Created At' column in descending order
                 language: {
                     paginate: {
                         previous: "<i class='ri-arrow-left-s-line'>",
@@ -157,9 +160,10 @@ if (!hasPermission('view_inquiry')) {
                 drawCallback: function() {
                     $(".dataTables_paginate > .pagination").addClass("pagination-rounded");
                 },
-            })
+            });
         });
     </script>
+
     <script>
         $(document).ready(function() {
             <?php
