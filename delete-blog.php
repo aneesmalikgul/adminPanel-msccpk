@@ -8,11 +8,11 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     $blogID = $_GET['id'];
 
     // Fetch associated images before deleting the blog post
-    $query = "SELECT front_image, main_image FROM blog_posts WHERE id = ?";
+    $query = "SELECT front_image, inner_image_1, inner_image_2 FROM blog_posts WHERE id = ?";
     $stmt_image = mysqli_prepare($conn, $query);
     mysqli_stmt_bind_param($stmt_image, "i", $blogID);
     mysqli_stmt_execute($stmt_image);
-    mysqli_stmt_bind_result($stmt_image, $frontImage, $mainImage);
+    mysqli_stmt_bind_result($stmt_image, $frontImage, $innerImage1, $innerImage2);
     mysqli_stmt_fetch($stmt_image);
     mysqli_stmt_close($stmt_image);
 
@@ -30,9 +30,14 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
                     throw new Exception("Failed to delete front image.");
                 }
             }
-            if (!empty($mainImage) && file_exists($mainImage)) {
-                if (!unlink($mainImage)) {
-                    throw new Exception("Failed to delete main image.");
+            if (!empty($innerImage1) && file_exists($innerImage1)) {
+                if (!unlink($innerImage1)) {
+                    throw new Exception("Failed to delete inner image 1.");
+                }
+            }
+            if (!empty($innerImage2) && file_exists($innerImage2)) {
+                if (!unlink($innerImage2)) {
+                    throw new Exception("Failed to delete inner image 2.");
                 }
             }
 
