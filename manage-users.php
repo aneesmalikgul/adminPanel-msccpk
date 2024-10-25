@@ -416,9 +416,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateUserData'])) 
                                                     <div class="mb-3">
                                                         <label for="userProfilePic" class="form-label">Profile Picture</label>
                                                         <input type="file" id="userProfilePic" name="userProfilePic" class="form-control" onchange="validateImage(this)" required>
-                                                        <img id="profilePicPreview" src="<?php
-                                                                                            echo htmlspecialchars($user['profile_pic_path']);
-                                                                                            ?>"
+                                                        <img id="profilePicPreview" src=""
                                                             alt="Profile Picture" class="img-thumbnail mt-2" style="max-width: 150px;">
                                                         <div class="valid-feedback">Looks good!</div>
                                                         <div class="invalid-feedback" id="imageError">Please Upload a Profile Picture. It must be 500x500 pixels. </div>
