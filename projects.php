@@ -4,10 +4,7 @@ include 'layouts/main.php';
 include 'layouts/config.php';
 include 'layouts/functions.php';
 
-// Verify Database Connection
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
+
 
 ?>
 
@@ -24,88 +21,86 @@ if ($conn->connect_error) {
 
 <?php
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveProject'])) {
-    // Collect form data
-    $projectName = mysqli_real_escape_string($conn, $_POST['projectName']);
-    $projectCategory = mysqli_real_escape_string($conn, $_POST['projectCategory']);
-    $clientName = mysqli_real_escape_string($conn, $_POST['clientName']);
-    $projectStartDate = mysqli_real_escape_string($conn, $_POST['projectStartDate']);
-    $projectEndingDate = mysqli_real_escape_string($conn, $_POST['projectEndingDate']);
-    $projectDescription = mysqli_real_escape_string($conn, $_POST['projectDescription']);
-    $createdBy = $_SESSION['username'];
-    $createdAt = date('Y-m-d H:i:s');
+    try {
+        // Start transaction
+        mysqli_begin_transaction($conn, MYSQLI_TRANS_START_READ_WRITE);
 
-    $targetDir = "assets/images/project_images/";
-    $uploadOk = 1;
-    $imagePaths = [
-        'frontImage' => null,
-        'referenceImage1' => null,
-        'referenceImage2' => null
-    ];
+        // Collect form data
+        $projectName = mysqli_real_escape_string($conn, $_POST['projectName']);
+        $projectCategory = mysqli_real_escape_string($conn, $_POST['projectCategory']);
+        $clientName = mysqli_real_escape_string($conn, $_POST['clientName']);
+        $projectStartDate = mysqli_real_escape_string($conn, $_POST['projectStartDate']);
+        $projectEndingDate = mysqli_real_escape_string($conn, $_POST['projectEndingDate']);
+        $projectDescription = mysqli_real_escape_string($conn, $_POST['projectDescription']);
+        $createdBy = $_SESSION['username'];
+        $createdAt = date('Y-m-d H:i:s');
 
-    // Check if directory exists, if not create it
-    if (!is_dir($targetDir)) {
-        mkdir($targetDir, 0777, true);
-    }
+        $targetDir = "assets/images/project_images/";
+        $uploadOk = 1;
+        $imagePaths = [
+            'frontImage' => null,
+            'referenceImage1' => null,
+            'referenceImage2' => null
+        ];
 
-    // Function to handle image upload
-    function handleImageUpload($inputName, $targetDir, &$imagePaths, &$uploadOk)
-    {
-        $imageFile = $_FILES[$inputName]['name'];
-        $targetFile = $targetDir . basename($imageFile);
-        $imageFileType = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
-
-        // Check if image file is an actual image or fake image
-        $check = getimagesize($_FILES[$inputName]["tmp_name"]);
-        if ($check !== false) {
-            $uploadOk = 1;
-        } else {
-            $_SESSION['message'][] = array("type" => "error", "content" => "File is not an image.");
-            $uploadOk = 0;
+        // Check if directory exists, if not create it
+        if (!is_dir($targetDir)) {
+            mkdir($targetDir, 0777, true);
         }
 
-        // Allow certain file formats
-        if (!in_array($imageFileType, ['jpg', 'jpeg', 'png', 'gif'])) {
-            $_SESSION['message'][] = array("type" => "error", "content" => "Sorry, only JPG, JPEG, PNG & GIF files are allowed.");
-            $uploadOk = 0;
-        }
+        // Function to handle image upload
+        function handleImageUpload($inputName, $targetDir, &$imagePaths, &$uploadOk)
+        {
+            $imageFile = $_FILES[$inputName]['name'];
+            $targetFile = $targetDir . basename($imageFile);
+            $imageFileType = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
 
-        // Check if $uploadOk is set to 0 by an error
-        if ($uploadOk == 0) {
-            $_SESSION['message'][] = array("type" => "error", "content" => "Sorry, your file was not uploaded.");
-        } else {
-            // If everything is ok, try to upload file
-            if (move_uploaded_file($_FILES[$inputName]["tmp_name"], $targetFile)) {
-                $imagePaths[$inputName] = $targetFile;
+            // Check if image file is an actual image or fake image
+            $check = getimagesize($_FILES[$inputName]["tmp_name"]);
+            if ($check !== false) {
+                $uploadOk = 1;
             } else {
-                $_SESSION['message'][] = array("type" => "error", "content" => "Sorry, there was an error uploading your file.");
+                $_SESSION['message'][] = array("type" => "danger", "content" => "File is not an image.");
+                $uploadOk = 0;
+            }
+
+            // Allow certain file formats
+            if (!in_array($imageFileType, ['jpg', 'jpeg', 'png', 'gif'])) {
+                $_SESSION['message'][] = array("type" => "danger", "content" => "Only JPG, JPEG, PNG & GIF files are allowed.");
+                $uploadOk = 0;
+            }
+
+            // Check if $uploadOk is set to 0 by an error
+            if ($uploadOk == 0) {
+                $_SESSION['message'][] = array("type" => "danger", "content" => "Your file was not uploaded.");
+            } else {
+                // If everything is ok, try to upload file
+                if (move_uploaded_file($_FILES[$inputName]["tmp_name"], $targetFile)) {
+                    $imagePaths[$inputName] = $targetFile;
+                } else {
+                    $_SESSION['message'][] = array("type" => "danger", "content" => "There was an error uploading your file.");
+                }
             }
         }
-    }
 
-    // Handle front image upload (required)
-    handleImageUpload('frontImage', $targetDir, $imagePaths, $uploadOk);
+        // Handle front image upload (required)
+        handleImageUpload('frontImage', $targetDir, $imagePaths, $uploadOk);
 
-    // Handle optional image uploads
-    if (!empty($_FILES['referenceImage1']['name'])) {
-        handleImageUpload('referenceImage1', $targetDir, $imagePaths, $uploadOk);
-    }
+        // Handle optional image uploads
+        if (!empty($_FILES['referenceImage1']['name'])) {
+            handleImageUpload('referenceImage1', $targetDir, $imagePaths, $uploadOk);
+        }
 
-    if (!empty($_FILES['referenceImage2']['name'])) {
-        handleImageUpload('referenceImage2', $targetDir, $imagePaths, $uploadOk);
-    }
+        if (!empty($_FILES['referenceImage2']['name'])) {
+            handleImageUpload('referenceImage2', $targetDir, $imagePaths, $uploadOk);
+        }
 
-    // Check if front image is uploaded successfully
-    if ($imagePaths['frontImage'] === null) {
-        $_SESSION['message'][] = array("type" => "error", "content" => "Front image is required.");
-        header("Location: projects.php");
-        exit();
-    }
+        // Check if front image is uploaded successfully
+        if ($imagePaths['frontImage'] === null) {
+            throw new Exception("Front image is required.");
+        }
 
-    // Insert data into the database
-    mysqli_begin_transaction($conn, MYSQLI_TRANS_START_READ_WRITE);
-    $stmt = null; // Initialize $stmt variable
-
-    try {
+        // Prepare and execute the insert statement
         $frontImagePath = $imagePaths['frontImage'];
         $referenceImagePath1 = $imagePaths['referenceImage1'] ?? null;
         $referenceImagePath2 = $imagePaths['referenceImage2'] ?? null;
@@ -125,22 +120,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveProject'])) {
             throw new Exception("Statement execution failed: " . mysqli_stmt_error($stmt));
         }
 
+        // Commit transaction if everything succeeded
         mysqli_commit($conn);
         $_SESSION['message'][] = array("type" => "success", "content" => "Project data saved successfully!");
+    } catch (Exception $e) {
+        // Rollback transaction if an error occurred
+        mysqli_rollback($conn);
+        $_SESSION['message'][] = array("type" => "danger", "content" => $e->getMessage());
+    } finally {
+        // Close the statement and connection
+        if (isset($stmt) && $stmt !== null) {
+            mysqli_stmt_close($stmt);
+        }
+        mysqli_close($conn);
+
+        // Redirect to projects.php to display messages
         header("Location: projects.php");
         exit();
-    } catch (Exception $e) {
-        mysqli_rollback($conn);
-        $_SESSION['message'][] = array("type" => "error", "content" => $e->getMessage());
-    } finally {
-        // Close statement if it's set
-        // if ($stmt !== null) {
-        //     mysqli_stmt_close($stmt);
-        // }
-        mysqli_close($conn);
-        header("location: projects.php");
     }
 }
+
 ?>
 
 <body>

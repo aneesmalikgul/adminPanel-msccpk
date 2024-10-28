@@ -98,14 +98,14 @@ function displaySessionMessage()
 {
     // Ensure $_SESSION['message'] is an array before accessing it
     if (isset($_SESSION['message']) && is_array($_SESSION['message'])) {
-        foreach ($_SESSION['message'] as $message) {
+        foreach ($_SESSION['message'] as $index => $message) {
             // Ensure message type and content are valid
             if (is_array($message) && isset($message['type'], $message['content'])) {
                 $alertType = htmlspecialchars($message['type']);
                 $content = htmlspecialchars($message['content']);
 
-                // Output the Bootstrap alert
-                echo "<div class='alert alert-{$alertType} alert-dismissible fade show' role='alert' id='session-alert'>";
+                // Output the Bootstrap alert with a unique class and data attribute for indexing
+                echo "<div class='alert alert-{$alertType} alert-dismissible fade show session-alert' role='alert' data-index='{$index}'>";
                 echo "{$content}";
                 echo "<button type='button' class='btn-close' data-bs-dismiss='alert' aria-label='Close'></button>";
                 echo "</div>";
@@ -115,21 +115,22 @@ function displaySessionMessage()
         // Unset the session message after displaying it
         unset($_SESSION['message']);
 
-        // Add JavaScript to dismiss the alert after 3 seconds
+        // Add JavaScript to dismiss each alert after 3 seconds
         echo "<script>
                 setTimeout(function() {
-                    var alert = document.getElementById('session-alert');
-                    if (alert) {
+                    var alerts = document.querySelectorAll('.session-alert');
+                    alerts.forEach(function(alert) {
                         alert.classList.remove('show');
                         alert.classList.add('fade');
                         setTimeout(function() {
                             alert.remove();
                         }, 500); // Wait for the fade effect to finish
-                    }
-                }, 3000); // 3 seconds
+                    });
+                }, 5000); // 3 seconds
               </script>";
     }
 }
+
 
 function checkUniqueField($conn, $field, $value, $userId = null)
 {

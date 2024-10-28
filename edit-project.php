@@ -54,103 +54,110 @@ try {
 
 // Handle form submission for updating the project
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateProject'])) {
-    $projectName = mysqli_real_escape_string($conn, $_POST['projectName']);
-    $projectCategory = mysqli_real_escape_string($conn, $_POST['projectCategory']);
-    $clientName = mysqli_real_escape_string($conn, $_POST['clientName']);
-    $projectStartDate = mysqli_real_escape_string($conn, $_POST['projectStartDate']);
-    $projectEndingDate = mysqli_real_escape_string($conn, $_POST['projectEndingDate']);
-    $projectDescription = mysqli_real_escape_string($conn, $_POST['projectDescription']);
-    $updatedBy = $_SESSION['username'];
-    $updatedAt = date('Y-m-d H:i:s');
+    try {
+        // Begin transaction
+        mysqli_begin_transaction($conn, MYSQLI_TRANS_START_READ_WRITE);
 
-    $targetDir = "assets/images/project_images/";
-    $imageFields = [
-        'frontImage' => $project['frontImage'],
-        'referenceImage1' => $project['referenceImage1'],
-        'referenceImage2' => $project['referenceImage2']
-    ];
+        // Collect form data
+        $projectName = mysqli_real_escape_string($conn, $_POST['projectName']);
+        $projectCategory = mysqli_real_escape_string($conn, $_POST['projectCategory']);
+        $clientName = mysqli_real_escape_string($conn, $_POST['clientName']);
+        $projectStartDate = mysqli_real_escape_string($conn, $_POST['projectStartDate']);
+        $projectEndingDate = mysqli_real_escape_string($conn, $_POST['projectEndingDate']);
+        $projectDescription = mysqli_real_escape_string($conn, $_POST['projectDescription']);
+        $updatedBy = $_SESSION['username'];
+        $updatedAt = date('Y-m-d H:i:s');
 
-    // Check if directory exists, if not create it
-    if (!is_dir($targetDir)) {
-        mkdir($targetDir, 0777, true);
-    }
+        $targetDir = "assets/images/project_images/";
+        $uploadOk = 1;
+        $imageFields = [
+            'frontImage' => $project['frontImage'],
+            'referenceImage1' => $project['referenceImage1'],
+            'referenceImage2' => $project['referenceImage2']
+        ];
 
-    // Function to handle image upload
-    function handleImageUpload($inputName, $targetDir, &$imageFields, &$uploadOk)
-    {
-        if (!empty($_FILES[$inputName]['name'])) {
-            $imageFile = $_FILES[$inputName]['name'];
-            $targetFile = $targetDir . basename($imageFile);
-            $imageFileType = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
+        // Check if directory exists, if not create it
+        if (!is_dir($targetDir)) {
+            mkdir($targetDir, 0777, true);
+        }
 
-            // Check if image file is an actual image or fake image
-            $check = getimagesize($_FILES[$inputName]["tmp_name"]);
-            if ($check !== false) {
-                $uploadOk = 1;
-            } else {
-                $_SESSION['message'][] = array("type" => "error", "content" => "File is not an image.");
-                $uploadOk = 0;
-                return;
-            }
+        // Function to handle image upload
+        function handleImageUpload($inputName, $targetDir, &$imageFields, &$uploadOk)
+        {
+            if (!empty($_FILES[$inputName]['name'])) {
+                $imageFile = $_FILES[$inputName]['name'];
+                $targetFile = $targetDir . basename($imageFile);
+                $imageFileType = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
 
-            // Allow certain file formats
-            if (!in_array($imageFileType, ['jpg', 'jpeg', 'png', 'gif'])) {
-                $_SESSION['message'][] = array("type" => "error", "content" => "Sorry, only JPG, JPEG, PNG & GIF files are allowed.");
-                $uploadOk = 0;
-                return;
-            }
-
-            // Check if $uploadOk is set to 0 by an error
-            if ($uploadOk == 0) {
-                $_SESSION['message'][] = array("type" => "error", "content" => "Sorry, your file was not uploaded.");
-            } else {
-                // If everything is ok, try to upload file
-                if (move_uploaded_file($_FILES[$inputName]["tmp_name"], $targetFile)) {
-                    $imageFields[$inputName] = $targetFile;
+                // Check if image file is an actual image or fake image
+                $check = getimagesize($_FILES[$inputName]["tmp_name"]);
+                if ($check !== false) {
+                    $uploadOk = 1;
                 } else {
-                    $_SESSION['message'][] = array("type" => "error", "content" => "Sorry, there was an error uploading your file.");
+                    throw new Exception("File is not an image for $inputName.");
+                }
+
+                // Allow certain file formats
+                if (!in_array($imageFileType, ['jpg', 'jpeg', 'png', 'gif'])) {
+                    throw new Exception("Only JPG, JPEG, PNG & GIF files are allowed for $inputName.");
+                }
+
+                // Upload file if all checks are passed
+                if (!move_uploaded_file($_FILES[$inputName]["tmp_name"], $targetFile)) {
+                    throw new Exception("There was an error uploading the file for $inputName.");
+                } else {
+                    $imageFields[$inputName] = $targetFile;
                 }
             }
         }
-    }
 
-    // Handle image uploads
-    handleImageUpload('frontImage', $targetDir, $imageFields, $uploadOk);
-    handleImageUpload('referenceImage1', $targetDir, $imageFields, $uploadOk);
-    handleImageUpload('referenceImage2', $targetDir, $imageFields, $uploadOk);
+        // Handle image uploads
+        handleImageUpload('frontImage', $targetDir, $imageFields, $uploadOk);
+        handleImageUpload('referenceImage1', $targetDir, $imageFields, $uploadOk);
+        handleImageUpload('referenceImage2', $targetDir, $imageFields, $uploadOk);
 
-    // Check if front image is uploaded successfully
-    if ($imageFields['frontImage'] === null) {
-        $_SESSION['message'][] = array("type" => "error", "content" => "Front image is required.");
-        header("Location: edit_project.php?id=" . $id);
-        exit();
-    }
+        // Check if front image is uploaded successfully
+        if ($imageFields['frontImage'] === null) {
+            throw new Exception("Front image is required.");
+        }
 
-    // Update data in the database
-    mysqli_begin_transaction($conn, MYSQLI_TRANS_START_READ_WRITE);
-    try {
+        // Prepare and execute the update statement
         $query = "UPDATE projects SET project_name = ?, project_category = ?, client_name = ?, start_date = ?, end_date = ?, front_image = ?, description = ?, reference_image_1 = ?, reference_image_2 = ?, updated_by = ?, updated_at = ? WHERE id = ?";
         $stmt = mysqli_prepare($conn, $query);
-        mysqli_stmt_bind_param($stmt, "sssssssssssi", $projectName, $projectCategory, $clientName, $projectStartDate, $projectEndingDate, $imageFields['frontImage'], $projectDescription, $imageFields['referenceImage1'], $imageFields['referenceImage2'], $updatedBy, $updatedAt, $id);
-
-        if (mysqli_stmt_execute($stmt)) {
-            mysqli_commit($conn);
-            $_SESSION['message'][] = array("type" => "success", "content" => "Project updated successfully!");
-            header("Location: projects.php");
-            exit();
-        } else {
-            throw new Exception("Database update failed: " . mysqli_error($conn));
+        if ($stmt === false) {
+            throw new Exception("Prepare statement failed: " . mysqli_error($conn));
         }
+
+        if (!mysqli_stmt_bind_param($stmt, "sssssssssssi", $projectName, $projectCategory, $clientName, $projectStartDate, $projectEndingDate, $imageFields['frontImage'], $projectDescription, $imageFields['referenceImage1'], $imageFields['referenceImage2'], $updatedBy, $updatedAt, $id)) {
+            throw new Exception("Binding parameters failed: " . mysqli_stmt_error($stmt));
+        }
+
+        if (!mysqli_stmt_execute($stmt)) {
+            throw new Exception("Statement execution failed: " . mysqli_stmt_error($stmt));
+        }
+
+        // Commit transaction if everything succeeded
+        mysqli_commit($conn);
+        $_SESSION['message'][] = array("type" => "success", "content" => "Project updated successfully!");
+        header("Location: projects.php");
+        exit();
     } catch (Exception $e) {
+        // Rollback transaction if an error occurred
         mysqli_rollback($conn);
-        $_SESSION['message'][] = array("type" => "error", "content" => $e->getMessage());
+        $_SESSION['message'][] = array("type" => "danger", "content" => $e->getMessage());
     } finally {
-        mysqli_stmt_close($stmt);
+        // Close the statement and connection
+        if (isset($stmt) && $stmt !== null) {
+            mysqli_stmt_close($stmt);
+        }
         mysqli_close($conn);
+
+        // Redirect to edit_project.php to display messages
         header("Location: edit_project.php?id=" . $id);
         exit();
     }
 }
+
 ?>
 
 
