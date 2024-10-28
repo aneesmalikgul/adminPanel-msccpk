@@ -85,6 +85,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateProject'])) {
         }
 
         // Function to handle image upload with unique name
+        // Function to handle image upload with unique name and file size check
         function handleImageUpload($inputName, $targetDir, &$imageFields, &$uploadOk)
         {
             if (!empty($_FILES[$inputName]['name'])) {
@@ -92,6 +93,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateProject'])) {
                 $uniqueName = uniqid() . "_" . time() . "." . strtolower(pathinfo($imageFile, PATHINFO_EXTENSION));
                 $targetFile = $targetDir . $uniqueName;
                 $imageFileType = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
+
+                // Check file size (limit set to 2 MB)
+                $fileSizeLimit = 2 * 1024 * 1024; // 2 MB in bytes
+                if ($_FILES[$inputName]["size"] > $fileSizeLimit) {
+                    throw new Exception("File size exceeds 2 MB for $inputName.");
+                }
 
                 // Check if image file is an actual image
                 $check = getimagesize($_FILES[$inputName]["tmp_name"]);
@@ -112,6 +119,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateProject'])) {
                 }
             }
         }
+
 
         // Handle image uploads
         handleImageUpload('frontImage', $targetDir, $imageFields, $uploadOk);
