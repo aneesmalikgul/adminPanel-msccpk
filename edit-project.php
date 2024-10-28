@@ -40,14 +40,14 @@ try {
             'is_active' => $is_active
         );
     } else {
-        $_SESSION['message'][] = array("type" => "error", "content" => "Record not found.");
+        $_SESSION['message'][] = array("type" => "danger", "content" => "Record not found.");
         header("Location: projects.php");
         exit();
     }
 
     mysqli_stmt_close($stmt);
 } catch (Exception $e) {
-    $_SESSION['message'][] = array("type" => "error", "content" => $e->getMessage());
+    $_SESSION['message'][] = array("type" => "danger", "content" => $e->getMessage());
     header("Location: projects.php");
     exit();
 }
@@ -67,6 +67,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateProject'])) {
         $projectDescription = mysqli_real_escape_string($conn, $_POST['projectDescription']);
         $updatedBy = $_SESSION['username'];
         $updatedAt = date('Y-m-d H:i:s');
+        // $id = (int)$_POST['projectId']; // Define project ID safely
 
         $targetDir = "assets/images/project_images/";
         $uploadOk = 1;
@@ -78,22 +79,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateProject'])) {
 
         // Check if directory exists, if not create it
         if (!is_dir($targetDir)) {
-            mkdir($targetDir, 0777, true);
+            if (!mkdir($targetDir, 0777, true)) {
+                throw new Exception("Failed to create directory for image uploads.");
+            }
         }
 
-        // Function to handle image upload
+        // Function to handle image upload with unique name
         function handleImageUpload($inputName, $targetDir, &$imageFields, &$uploadOk)
         {
             if (!empty($_FILES[$inputName]['name'])) {
                 $imageFile = $_FILES[$inputName]['name'];
-                $targetFile = $targetDir . basename($imageFile);
+                $uniqueName = uniqid() . "_" . time() . "." . strtolower(pathinfo($imageFile, PATHINFO_EXTENSION));
+                $targetFile = $targetDir . $uniqueName;
                 $imageFileType = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
 
-                // Check if image file is an actual image or fake image
+                // Check if image file is an actual image
                 $check = getimagesize($_FILES[$inputName]["tmp_name"]);
-                if ($check !== false) {
-                    $uploadOk = 1;
-                } else {
+                if ($check === false) {
                     throw new Exception("File is not an image for $inputName.");
                 }
 
@@ -102,7 +104,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateProject'])) {
                     throw new Exception("Only JPG, JPEG, PNG & GIF files are allowed for $inputName.");
                 }
 
-                // Upload file if all checks are passed
+                // Upload file if all checks pass
                 if (!move_uploaded_file($_FILES[$inputName]["tmp_name"], $targetFile)) {
                     throw new Exception("There was an error uploading the file for $inputName.");
                 } else {
@@ -146,14 +148,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnUpdateProject'])) {
         mysqli_rollback($conn);
         $_SESSION['message'][] = array("type" => "danger", "content" => $e->getMessage());
     } finally {
-        // Close the statement and connection
-        if (isset($stmt) && $stmt !== null) {
-            mysqli_stmt_close($stmt);
-        }
-        mysqli_close($conn);
+        // Close the statement if it was prepared
+
+        // mysqli_stmt_close($stmt);
+
 
         // Redirect to edit_project.php to display messages
-        header("Location: edit_project.php?id=" . $id);
+        header("Location: projects.php");
         exit();
     }
 }

@@ -48,53 +48,55 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveProject'])) {
             mkdir($targetDir, 0777, true);
         }
 
-        // Function to handle image upload
+        // Function to handle image upload with unique name
         function handleImageUpload($inputName, $targetDir, &$imagePaths, &$uploadOk)
         {
-            $imageFile = $_FILES[$inputName]['name'];
-            $targetFile = $targetDir . basename($imageFile);
-            $imageFileType = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
+            if (!empty($_FILES[$inputName]['name'])) {
+                $imageFile = $_FILES[$inputName]['name'];
+                $uniqueName = uniqid() . "_" . time() . "." . strtolower(pathinfo($imageFile, PATHINFO_EXTENSION));
+                $targetFile = $targetDir . $uniqueName;
+                $imageFileType = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
 
-            // Check if image file is an actual image or fake image
-            $check = getimagesize($_FILES[$inputName]["tmp_name"]);
-            if ($check !== false) {
-                $uploadOk = 1;
-            } else {
-                $_SESSION['message'][] = array("type" => "danger", "content" => "File is not an image.");
-                $uploadOk = 0;
-            }
-
-            // Allow certain file formats
-            if (!in_array($imageFileType, ['jpg', 'jpeg', 'png', 'gif'])) {
-                $_SESSION['message'][] = array("type" => "danger", "content" => "Only JPG, JPEG, PNG & GIF files are allowed.");
-                $uploadOk = 0;
-            }
-
-            // Check if $uploadOk is set to 0 by an error
-            if ($uploadOk == 0) {
-                $_SESSION['message'][] = array("type" => "danger", "content" => "Your file was not uploaded.");
-            } else {
-                // If everything is ok, try to upload file
-                if (move_uploaded_file($_FILES[$inputName]["tmp_name"], $targetFile)) {
-                    $imagePaths[$inputName] = $targetFile;
+                // Check if image file is an actual image or fake image
+                $check = getimagesize($_FILES[$inputName]["tmp_name"]);
+                if ($check !== false) {
+                    $uploadOk = 1;
                 } else {
-                    $_SESSION['message'][] = array("type" => "danger", "content" => "There was an error uploading your file.");
+                    $_SESSION['message'][] = array("type" => "danger", "content" => "File is not an image.");
+                    $uploadOk = 0;
+                }
+
+                // Allow certain file formats
+                if (!in_array($imageFileType, ['jpg', 'jpeg', 'png', 'gif'])) {
+                    $_SESSION['message'][] = array("type" => "danger", "content" => "Only JPG, JPEG, PNG & GIF files are allowed.");
+                    $uploadOk = 0;
+                }
+
+                // Check if $uploadOk is set to 0 by an error
+                if ($uploadOk == 0) {
+                    $_SESSION['message'][] = array("type" => "danger", "content" => "Your file was not uploaded.");
+                } else {
+                    // If everything is ok, try to upload file
+                    if (move_uploaded_file($_FILES[$inputName]["tmp_name"], $targetFile)) {
+                        $imagePaths[$inputName] = $targetFile;
+                    } else {
+                        $_SESSION['message'][] = array("type" => "danger", "content" => "There was an error uploading your file.");
+                    }
                 }
             }
         }
 
         // Handle front image upload (required)
-        handleImageUpload('frontImage', $targetDir, $imagePaths, $uploadOk);
-
+        if (!empty($_FILES['frontImage']['name'])) {
+            handleImageUpload('frontImage', $targetDir, $imagePaths, $uploadOk);
+        }
         // Handle optional image uploads
         if (!empty($_FILES['referenceImage1']['name'])) {
             handleImageUpload('referenceImage1', $targetDir, $imagePaths, $uploadOk);
         }
-
         if (!empty($_FILES['referenceImage2']['name'])) {
             handleImageUpload('referenceImage2', $targetDir, $imagePaths, $uploadOk);
         }
-
         // Check if front image is uploaded successfully
         if ($imagePaths['frontImage'] === null) {
             throw new Exception("Front image is required.");
@@ -132,7 +134,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['btnSaveProject'])) {
         if (isset($stmt) && $stmt !== null) {
             mysqli_stmt_close($stmt);
         }
-        mysqli_close($conn);
+        // mysqli_close($conn);
 
         // Redirect to projects.php to display messages
         header("Location: projects.php");
